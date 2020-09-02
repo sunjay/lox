@@ -1,4 +1,5 @@
 mod diag;
+mod scanner;
 
 use std::fs;
 use std::path::{PathBuf, Path};
@@ -24,8 +25,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_file(input: &Path) -> anyhow::Result<()> {
-    let source_code = fs::read_to_string(input)?;
-    run(source_code)
+    let source_code = fs::read(input)?;
+    run(&source_code)
 }
 
 fn run_prompt() -> anyhow::Result<()> {
@@ -36,7 +37,7 @@ fn run_prompt() -> anyhow::Result<()> {
         match readline {
             Ok(line) => {
                 reader.add_history_entry(line.as_str());
-                match run(line) {
+                match run(line.as_bytes()) {
                     Ok(()) => {},
                     Err(err) => println!("{}", err),
                 }
@@ -58,6 +59,9 @@ fn run_prompt() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run(source_code: String) -> anyhow::Result<()> {
+fn run(source_code: &[u8]) -> anyhow::Result<()> {
+    let tokens = scanner::scan_tokens(source_code);
+    dbg!(tokens);
+
     todo!()
 }
