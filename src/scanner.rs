@@ -134,6 +134,44 @@ impl<'a> Scanner<'a> {
         // This unwrap won't happen because the string is a valid numeric literal
         num_str.parse().unwrap()
     }
+
+    /// Matches an identifier or keyword, assuming that the first byte of the input is currently the
+    /// first byte of the identifier
+    fn ident_or_kw(&mut self) -> TokenKind {
+        // Store the input starting at the first byte
+        let slice = self.input;
+        // Count the number of bytes found in the literal
+        let mut found = 0;
+
+        // Consume all alphanumeric characters available
+        while matches!(self.input.get(0), Some(b'0'..=b'9') | Some(b'a' ..= b'z') | Some(b'A' ..= b'Z')) {
+            self.input = &self.input[1..];
+            found += 1;
+        }
+
+        // This is safe because a string of ASCII alphanumeric characters is valid UTF-8
+        let ident = unsafe { str::from_utf8_unchecked(&slice[..found]) };
+
+        match ident {
+            "and" => TokenKind::And,
+            "class" => TokenKind::Class,
+            "else" => TokenKind::Else,
+            "false" => TokenKind::False,
+            "fun" => TokenKind::Fun,
+            "for" => TokenKind::For,
+            "if" => TokenKind::If,
+            "nil" => TokenKind::Nil,
+            "or" => TokenKind::Or,
+            "print" => TokenKind::Print,
+            "return" => TokenKind::Return,
+            "super" => TokenKind::Super,
+            "this" => TokenKind::This,
+            "true" => TokenKind::True,
+            "var" => TokenKind::Var,
+            "while" => TokenKind::While,
+            ident => TokenKind::Identifier(ident.into()),
+        }
+    }
 }
 
 impl<'a> Iterator for Scanner<'a> {
@@ -180,6 +218,10 @@ impl<'a> Iterator for Scanner<'a> {
             },
 
             (Some(b'0' ..= b'9'), _) => (TokenKind::Number(self.num_lit()), 0),
+
+            (Some(b'a' ..= b'z'), _) |
+            (Some(b'A' ..= b'Z'), _) |
+            (Some(b'_'), _) => (self.ident_or_kw(), 0),
 
             (Some(&c), _) => return Some(Err(Diagnostic {
                 line: self.line,
