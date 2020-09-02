@@ -2,6 +2,7 @@ mod token;
 
 pub use token::*;
 
+use std::str;
 use std::sync::Arc;
 
 use crate::diag::Diagnostic;
@@ -100,6 +101,39 @@ impl<'a> Scanner<'a> {
             message: "Unterminated string".to_string(),
         }.into())
     }
+
+    /// Matches a number literal, assuming that the first byte of the input is currently the
+    /// first digit of the literal
+    fn num_lit(&mut self) -> f64 {
+        // Store the input starting at the first digit
+        let slice = self.input;
+        // Count the number of bytes found in the literal
+        let mut found = 0;
+
+        // Consume all digits available
+        while matches!(self.input.get(0), Some(b'0'..=b'9')) {
+            self.input = &self.input[1..];
+            found += 1;
+        }
+
+        // Only consume the decimal point if there is a digit following it
+        if matches!((self.input.get(0), self.input.get(1)), (Some(b'.'), Some(b'0'..=b'9'))) {
+            // Advance past the decimal point
+            self.input = &self.input[1..];
+            found += 1;
+
+            // Consume all digits available
+            while matches!(self.input.get(0), Some(b'0'..=b'9')) {
+                self.input = &self.input[1..];
+                found += 1;
+            }
+        }
+
+        // This is safe because only numbers and '.' will be in this string and that is valid UTF-8
+        let num_str = unsafe { str::from_utf8_unchecked(&slice[..found]) };
+        // This unwrap won't happen because the string is a valid numeric literal
+        num_str.parse().unwrap()
+    }
 }
 
 impl<'a> Iterator for Scanner<'a> {
@@ -139,10 +173,13 @@ impl<'a> Iterator for Scanner<'a> {
 
             // Return advance = 0 for dynamically-sized tokens since the matchers for those will
             // advance the input themselves
+
             (Some(b'"'), _) => match self.str_lit() {
                 Ok(lit) => (TokenKind::String(lit), 0),
                 Err(err) => return Some(Err(err)),
             },
+
+            (Some(b'0' ..= b'9'), _) => (TokenKind::Number(self.num_lit()), 0),
 
             (Some(&c), _) => return Some(Err(Diagnostic {
                 line: self.line,
