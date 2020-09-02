@@ -103,10 +103,10 @@ impl<'a> Iterator for Scanner<'a> {
             (Some(b'>'), Some(b'=')) => (TokenKind::GreaterEqual, 2),
             (Some(b'>'), _) => (TokenKind::Greater, 1),
 
-            (Some(&c), _) => return Some(Err(Diagnostic::line(
-                self.line,
-                format!("Unexpected character: `{}`", c as char),
-            ).into())),
+            (Some(&c), _) => return Some(Err(Diagnostic {
+                line: self.line,
+                message: format!("Unexpected character: `{}`", c as char),
+            }.into())),
 
             (None, _) => {
                 self.reached_eof = true;
