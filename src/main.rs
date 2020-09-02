@@ -60,7 +60,7 @@ fn run_prompt() -> anyhow::Result<()> {
 }
 
 fn run(source_code: &[u8]) -> anyhow::Result<()> {
-    let tokens = scanner::scan_tokens(source_code);
+    let tokens = scanner::scan_tokens(source_code)?;
     dbg!(tokens);
 
     todo!()
