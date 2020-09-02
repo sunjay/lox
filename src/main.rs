@@ -1,3 +1,5 @@
+mod diag;
+
 use std::fs;
 use std::path::{PathBuf, Path};
 
@@ -34,7 +36,10 @@ fn run_prompt() -> anyhow::Result<()> {
         match readline {
             Ok(line) => {
                 reader.add_history_entry(line.as_str());
-                run(line)?;
+                match run(line) {
+                    Ok(()) => {},
+                    Err(err) => println!("{}", err),
+                }
             },
 
             Err(ReadlineError::Interrupted) => {
