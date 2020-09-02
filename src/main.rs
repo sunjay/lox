@@ -1,5 +1,7 @@
 mod diag;
 mod scanner;
+mod ast;
+mod parser;
 
 use std::fs;
 use std::path::{PathBuf, Path};
@@ -61,7 +63,8 @@ fn run_prompt() -> anyhow::Result<()> {
 
 fn run(source_code: &[u8]) -> anyhow::Result<()> {
     let tokens = scanner::scan_tokens(source_code)?;
-    dbg!(tokens);
+    let expr = parser::parse_expr(&tokens)?;
+    dbg!(expr);
 
     todo!()
 }
