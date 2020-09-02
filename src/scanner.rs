@@ -2,6 +2,8 @@ mod token;
 
 pub use token::*;
 
+use std::sync::Arc;
+
 use crate::diag::Diagnostic;
 
 pub fn scan_tokens(source_code: &[u8]) -> anyhow::Result<Vec<Token>> {
@@ -66,6 +68,38 @@ impl<'a> Scanner<'a> {
 
         true
     }
+
+    /// Matches a string literal, assuming that the first character of the input is currently the
+    /// opening quote
+    fn str_lit(&mut self) -> anyhow::Result<Arc<[u8]>> {
+        // Advance past the opening quote
+        self.input = &self.input[1..];
+        // Store the input starting at the first byte of the string
+        let slice = self.input;
+        // Count the number of bytes found inside the quotes
+        let mut found = 0;
+        // Record the start line for a more useful error message
+        let start_line = self.line;
+
+        while let Some(&byte) = self.input.get(0) {
+            self.input = &self.input[1..];
+
+            // Keep the line count accurate, even when dealing with multi-line strings
+            if byte == b'\n' {
+                self.line += 1;
+            }
+
+            match byte {
+                b'"' => return Ok(slice[..found].into()),
+                _ => found += 1,
+            }
+        }
+
+        Err(Diagnostic {
+            line: start_line,
+            message: "Unterminated string".to_string(),
+        }.into())
+    }
 }
 
 impl<'a> Iterator for Scanner<'a> {
@@ -102,6 +136,13 @@ impl<'a> Iterator for Scanner<'a> {
             (Some(b'<'), _) => (TokenKind::Less, 1),
             (Some(b'>'), Some(b'=')) => (TokenKind::GreaterEqual, 2),
             (Some(b'>'), _) => (TokenKind::Greater, 1),
+
+            // Return advance = 0 for dynamically-sized tokens since the matchers for those will
+            // advance the input themselves
+            (Some(b'"'), _) => match self.str_lit() {
+                Ok(lit) => (TokenKind::String(lit), 0),
+                Err(err) => return Some(Err(err)),
+            },
 
             (Some(&c), _) => return Some(Err(Diagnostic {
                 line: self.line,
