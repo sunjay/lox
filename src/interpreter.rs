@@ -278,7 +278,20 @@ impl Evaluate for ast::UnaryExpr {
 
 impl Evaluate for ast::CallExpr {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let Self {callee, args} = self;
+
+        let callee_line = callee.line();
+        let callee = callee.eval(ctx)?;
+        let args = args.into_iter()
+            .map(|arg| arg.eval(ctx))
+            .collect::<Result<Vec<_>, _>>()?;
+        match callee.into_callable() {
+            Some(callee) => callee.call(ctx, args),
+            None => Err(Diagnostic {
+                line: callee_line,
+                message: format!("Can only call functions and classes"),
+            }.into()),
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 use std::fmt;
 
+use super::Interpreter;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
     Number,
@@ -64,6 +66,27 @@ impl Value {
             Nil => false,
 
             _ => true,
+        }
+    }
+
+    pub fn into_callable(self) -> Option<Callable> {
+        use Value::*;
+        match self {
+            Number(_) |
+            Bytes(_) |
+            Bool(_) |
+            Nil => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Callable {
+}
+
+impl Callable {
+    pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+        match self {
         }
     }
 }
