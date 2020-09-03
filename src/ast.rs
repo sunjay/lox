@@ -9,6 +9,7 @@ pub struct Program {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
     VarDecl(VarDecl),
+    FuncDecl(FuncDecl),
     Stmt(Stmt),
 }
 
@@ -16,6 +17,13 @@ pub enum Decl {
 pub struct VarDecl {
     pub name: Ident,
     pub initializer: Option<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FuncDecl {
+    pub name: Ident,
+    pub params: Vec<Ident>,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, PartialEq)]

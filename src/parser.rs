@@ -33,6 +33,10 @@ enum ParseError {
     TooManyArguments {
         line: usize,
     },
+
+    TooManyParams {
+        line: usize,
+    },
 }
 
 impl ParseError {
@@ -51,7 +55,12 @@ impl ParseError {
 
             TooManyArguments {line} => Diagnostic {
                 line,
-                message: format!("Cannot have more than 255 arguments in function or call"),
+                message: format!("Cannot have more than 255 arguments in function call"),
+            },
+
+            TooManyParams {line} => Diagnostic {
+                line,
+                message: format!("Cannot have more than 255 parameters in function declaration"),
             },
         }
     }
@@ -89,9 +98,13 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 //
 // program     → declaration* EOF ;
 //
-// declaration → varDecl
+// declaration → funDecl
+//             | varDecl
 //             | statement ;
 //
+// funDecl  → "fun" function ;
+// function → IDENTIFIER "(" parameters? ")" block ;
+// parameters → IDENTIFIER ( "," IDENTIFIER )* ;
 // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement → exprStmt
@@ -162,6 +175,7 @@ fn program(mut input: Input) -> IResult<Program> {
 fn declaration(input: Input) -> IResult<Decl> {
     match input[0].kind {
         TokenKind::Var => map(var_decl(input), Decl::VarDecl),
+        TokenKind::Fun => map(func_decl(input), Decl::FuncDecl),
         _ => map(statement(input), Decl::Stmt),
     }
 }
@@ -182,6 +196,44 @@ fn var_decl(input: Input) -> IResult<VarDecl> {
     let (input, _) = tk(input, TokenKind::Semicolon)?;
 
     Ok((input, VarDecl {name, initializer}))
+}
+
+fn func_decl(input: Input) -> IResult<FuncDecl> {
+    let (input, _) = tk(input, TokenKind::Fun)?;
+    let (input, name) = ident(input)?;
+    let (input, params) = parameters(input)?;
+    let (input, body) = block(input)?;
+
+    Ok((input, FuncDecl {name, params, body}))
+}
+
+fn parameters(input: Input) -> IResult<Vec<Ident>> {
+    let (mut input, paren_token) = tk(input, TokenKind::LeftParen)?;
+    let start_line = paren_token.line;
+
+    // This allows trailing commas because yolo
+    let mut params = Vec::new();
+    while input[0].kind != TokenKind::RightParen {
+        let (next_input, param) = ident(input)?;
+        params.push(param);
+        input = next_input;
+
+        match tk(input, TokenKind::Comma) {
+            Ok((next_input, _)) => input = next_input,
+            Err(_) => break,
+        }
+    }
+
+    let (input, _) = tk(input, TokenKind::RightParen)?;
+
+    // The limit is actually 254 because of `this`
+    if params.len() >= 255 {
+        return Err(ParseError::TooManyParams {
+            line: start_line,
+        });
+    }
+
+    Ok((input, params))
 }
 
 fn statement(input: Input) -> IResult<Stmt> {
