@@ -29,6 +29,10 @@ enum ParseError {
     UnsupportedLValue {
         line: usize,
     },
+
+    TooManyArguments {
+        line: usize,
+    },
 }
 
 impl ParseError {
@@ -43,6 +47,11 @@ impl ParseError {
             UnsupportedLValue {line} => Diagnostic {
                 line,
                 message: format!("Unsupported left-hand side of assignment expression"),
+            },
+
+            TooManyArguments {line} => Diagnostic {
+                line,
+                message: format!("Cannot have more than 255 arguments in function or call"),
             },
         }
     }
@@ -470,7 +479,8 @@ fn call(input: Input) -> IResult<Expr> {
 }
 
 fn arguments(input: Input) -> IResult<Vec<Expr>> {
-    let (mut input, _) = tk(input, TokenKind::LeftParen)?;
+    let (mut input, paren_token) = tk(input, TokenKind::LeftParen)?;
+    let start_line = paren_token.line;
 
     // This allows trailing commas because yolo
     let mut args = Vec::new();
@@ -486,6 +496,14 @@ fn arguments(input: Input) -> IResult<Vec<Expr>> {
     }
 
     let (input, _) = tk(input, TokenKind::RightParen)?;
+
+    // The limit is actually 254 because of `this`
+    if args.len() >= 255 {
+        return Err(ParseError::TooManyArguments {
+            line: start_line,
+        });
+    }
+
     Ok((input, args))
 }
 
