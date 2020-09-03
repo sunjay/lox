@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,11 +12,32 @@ pub enum Expr {
     Nil(Nil),
 }
 
+impl Expr {
+    pub fn line(&self) -> usize {
+        use Expr::*;
+        match self {
+            Binary(expr) => expr.line(),
+            Unary(expr) => expr.line(),
+            Number(value) => value.line,
+            String(value) => value.line,
+            Bool(value) => value.line,
+            Ident(value) => value.line,
+            Nil(value) => value.line,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BinaryExpr {
     pub left: Expr,
     pub op: BinaryOp,
     pub right: Expr,
+}
+
+impl BinaryExpr {
+    pub fn line(&self) -> usize {
+        self.left.line()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,16 +54,50 @@ pub enum BinaryOp {
     Div,
 }
 
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use BinaryOp::*;
+        match self {
+            Equal => write!(f, "=="),
+            NotEqual => write!(f, "!="),
+            Greater => write!(f, ">"),
+            GreaterEqual => write!(f, ">="),
+            Less => write!(f, "<"),
+            LessEqual => write!(f, "<="),
+            Add => write!(f, "+"),
+            Sub => write!(f, "-"),
+            Mul => write!(f, "*"),
+            Div => write!(f, "/"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnaryExpr {
     pub op: UnaryOp,
     pub value: Expr,
 }
 
+impl UnaryExpr {
+    pub fn line(&self) -> usize {
+        self.value.line()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOp {
     Not,
     Neg,
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use UnaryOp::*;
+        match self {
+            Not => write!(f, "!"),
+            Neg => write!(f, "-"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -2,12 +2,15 @@ mod diag;
 mod scanner;
 mod ast;
 mod parser;
+mod interpreter;
 
 use std::fs;
 use std::path::{PathBuf, Path};
 
 use structopt::StructOpt;
 use rustyline::{error::ReadlineError, Editor};
+
+use crate::interpreter::Interpreter;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "lox", about = "An implementation of the lox programming language")]
@@ -28,10 +31,12 @@ fn main() -> anyhow::Result<()> {
 
 fn run_file(input: &Path) -> anyhow::Result<()> {
     let source_code = fs::read(input)?;
-    run(&source_code)
+    let mut interpreter = Interpreter::default();
+    run(&mut interpreter, &source_code)
 }
 
 fn run_prompt() -> anyhow::Result<()> {
+    let mut interpreter = Interpreter::default();
     let mut reader = Editor::<()>::new();
 
     loop {
@@ -39,7 +44,7 @@ fn run_prompt() -> anyhow::Result<()> {
         match readline {
             Ok(line) => {
                 reader.add_history_entry(line.as_str());
-                match run(line.as_bytes()) {
+                match run(&mut interpreter, line.as_bytes()) {
                     Ok(()) => {},
                     Err(err) => println!("{}", err),
                 }
@@ -47,7 +52,6 @@ fn run_prompt() -> anyhow::Result<()> {
 
             Err(ReadlineError::Interrupted) => {
                 println!("^C");
-                break;
             },
 
             Err(ReadlineError::Eof) => {
@@ -61,10 +65,10 @@ fn run_prompt() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run(source_code: &[u8]) -> anyhow::Result<()> {
+fn run(interpreter: &mut Interpreter, source_code: &[u8]) -> anyhow::Result<()> {
     let tokens = scanner::scan_tokens(source_code)?;
     let expr = parser::parse_expr(&tokens)?;
-    dbg!(expr);
+    println!("{}", interpreter.eval(expr)?);
 
-    todo!()
+    Ok(())
 }
