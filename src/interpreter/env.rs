@@ -16,4 +16,8 @@ impl Environment {
     pub fn get(&self, name: &str) -> Option<&Value> {
         self.values.get(name)
     }
+
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut Value> {
+        self.values.get_mut(name)
+    }
 }

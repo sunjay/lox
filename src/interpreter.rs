@@ -91,7 +91,24 @@ impl Evaluate for ast::Expr {
 
 impl Evaluate for ast::Assign {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let Self {lvalue, rhs} = self;
+        let line = lvalue.line();
+
+        let value = rhs.eval(ctx)?;
+
+        use ast::LValue::*;
+        match lvalue {
+            Ident(name) => {
+                let entry = ctx.env.get_mut(&name.value).ok_or_else(|| Diagnostic {
+                    line,
+                    message: format!("Undefined variable `{}`", name.value),
+                })?;
+
+                *entry = value.clone();
+
+                Ok(value)
+            },
+        }
     }
 }
 
