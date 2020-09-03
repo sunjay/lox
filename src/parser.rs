@@ -1,3 +1,4 @@
+use std::iter;
 use std::fmt;
 
 use crate::scanner::{TokenKind, Token};
@@ -179,7 +180,7 @@ fn statement(input: Input) -> IResult<Stmt> {
         TokenKind::LeftBrace => map(block(input), Stmt::Block),
         TokenKind::If => map(cond(input), |cond| Stmt::If(Box::new(cond))),
         TokenKind::While => map(while_loop(input), |while_loop| Stmt::While(Box::new(while_loop))),
-        TokenKind::For => map(for_loop(input), |for_loop| Stmt::For(Box::new(for_loop))),
+        TokenKind::For => for_loop(input),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -196,7 +197,7 @@ fn print_stmt(input: Input) -> IResult<PrintStmt> {
 }
 
 fn block(input: Input) -> IResult<Block> {
-    let (mut input, brace_token) = tk(input, TokenKind::LeftBrace)?;
+    let (mut input, _) = tk(input, TokenKind::LeftBrace)?;
 
     let mut decls = Vec::new();
     while input[0].kind != TokenKind::RightBrace {
@@ -207,10 +208,7 @@ fn block(input: Input) -> IResult<Block> {
 
     let (input, _) = tk(input, TokenKind::RightBrace)?;
 
-    Ok((input, Block {
-        start_line: brace_token.line,
-        decls,
-    }))
+    Ok((input, Block {decls}))
 }
 
 fn cond(input: Input) -> IResult<Cond> {
@@ -240,22 +238,28 @@ fn while_loop(input: Input) -> IResult<WhileLoop> {
     Ok((input, WhileLoop {cond, body}))
 }
 
-fn for_loop(input: Input) -> IResult<ForLoop> {
+// for loop is desugared into block with while loop
+fn for_loop(input: Input) -> IResult<Stmt> {
     let (input, _) = tk(input, TokenKind::For)?;
     let (input, _) = tk(input, TokenKind::LeftParen)?;
 
     let (input, initializer) = match input[0].kind {
-        TokenKind::Var => map(var_decl(input), |decl| Some(ForLoopInit::VarDecl(decl)))?,
+        TokenKind::Var => map(var_decl(input), |decl| Some(Decl::VarDecl(decl)))?,
+
         TokenKind::Semicolon => map(tk(input, TokenKind::Semicolon), |_| None)?,
-        _ => map(expr_stmt(input), |expr| Some(ForLoopInit::Expr(expr)))?,
+
+        _ => map(expr_stmt(input), |expr| Some(Decl::Stmt(Stmt::Expr(expr))))?,
     };
 
     let (input, cond) = if input[0].kind == TokenKind::Semicolon {
-        map(tk(input, TokenKind::Semicolon), |_| None)?
+        map(tk(input, TokenKind::Semicolon), |token| Expr::Bool(BoolLit {
+            value: true,
+            line: token.line,
+        }))?
     } else {
         let (input, cond) = expr(input)?;
         let (input, _) = tk(input, TokenKind::Semicolon)?;
-        (input, Some(cond))
+        (input, cond)
     };
 
     let (input, increment) = if input[0].kind == TokenKind::RightParen {
@@ -268,7 +272,20 @@ fn for_loop(input: Input) -> IResult<ForLoop> {
 
     let (input, body) = statement(input)?;
 
-    Ok((input, ForLoop {initializer, cond, increment, body}))
+    let for_loop = Stmt::Block(Block {
+        decls: initializer.into_iter()
+            .chain(iter::once(Decl::Stmt(Stmt::While(Box::new(WhileLoop {
+                cond,
+                body: Stmt::Block(Block {
+                    decls: iter::once(Decl::Stmt(body))
+                        .chain(increment.map(|expr| Decl::Stmt(Stmt::Expr(expr))))
+                        .collect(),
+                }),
+            })))))
+            .collect(),
+    });
+
+    Ok((input, for_loop))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {

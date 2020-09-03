@@ -63,7 +63,6 @@ impl Evaluate for ast::Stmt {
             Block(stmt) => stmt.eval(ctx),
             If(stmt) => stmt.eval(ctx),
             While(stmt) => stmt.eval(ctx),
-            For(stmt) => stmt.eval(ctx),
         }
     }
 }
@@ -79,7 +78,7 @@ impl Evaluate for ast::PrintStmt {
 
 impl Evaluate for ast::Block {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        let Self {start_line: _, decls} = self;
+        let Self {decls} = self;
 
         ctx.env.push_scope();
         for decl in decls {
@@ -114,12 +113,6 @@ impl Evaluate for ast::WhileLoop {
         }
 
         Ok(Value::Nil)
-    }
-}
-
-impl Evaluate for ast::ForLoop {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
     }
 }
 
