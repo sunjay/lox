@@ -256,23 +256,27 @@ fn assignment(input: Input) -> IResult<Expr> {
 }
 
 fn logical_or(input: Input) -> IResult<Expr> {
-    let (input, left) = logical_and(input)?;
-    if let Ok((input, _)) = tk(input, TokenKind::Or) {
-        let (input, right) = logical_and(input)?;
-        Ok((input, Expr::LogicalOr(Box::new(LogicalOr {left, right}))))
-    } else {
-        Ok((input, left))
+    let (mut input, mut left) = logical_and(input)?;
+
+    while let Ok((next_input, _)) = tk(input, TokenKind::Or) {
+        let (next_input, right) = logical_and(next_input)?;
+        left = Expr::LogicalOr(Box::new(LogicalOr {left, right}));
+        input = next_input;
     }
+
+    Ok((input, left))
 }
 
 fn logical_and(input: Input) -> IResult<Expr> {
-    let (input, left) = equality(input)?;
-    if let Ok((input, _)) = tk(input, TokenKind::And) {
-        let (input, right) = equality(input)?;
-        Ok((input, Expr::LogicalAnd(Box::new(LogicalAnd {left, right}))))
-    } else {
-        Ok((input, left))
+    let (mut input, mut left) = equality(input)?;
+
+    while let Ok((next_input, _)) = tk(input, TokenKind::And) {
+        let (next_input, right) = equality(next_input)?;
+        left = Expr::LogicalAnd(Box::new(LogicalAnd {left, right}));
+        input = next_input;
     }
+
+    Ok((input, left))
 }
 
 fn equality(input: Input) -> IResult<Expr> {
