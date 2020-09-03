@@ -3,6 +3,7 @@ mod scanner;
 mod ast;
 mod parser;
 mod interpreter;
+mod prelude;
 
 use std::fs;
 use std::path::{PathBuf, Path};
@@ -31,12 +32,12 @@ fn main() -> anyhow::Result<()> {
 
 fn run_file(input: &Path) -> anyhow::Result<()> {
     let source_code = fs::read(input)?;
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::with_prelude();
     run(&mut interpreter, &source_code)
 }
 
 fn run_prompt() -> anyhow::Result<()> {
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::with_prelude();
     let mut reader = Editor::<()>::new();
 
     loop {

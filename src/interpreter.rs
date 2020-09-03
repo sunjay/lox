@@ -4,15 +4,21 @@ mod env;
 pub use value::*;
 pub use env::*;
 
-use crate::ast;
+use crate::{ast, prelude};
 use crate::diag::Diagnostic;
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
-    env: Environment,
+    pub(crate) env: Environment,
 }
 
 impl Interpreter {
+    pub fn with_prelude() -> Self {
+        let mut ctx = Self::default();
+        prelude::populate_prelude(&mut ctx);
+        ctx
+    }
+
     pub fn eval(&mut self, expr: ast::Program) -> anyhow::Result<Value> {
         expr.eval(self)
     }
@@ -230,6 +236,12 @@ impl Evaluate for ast::BinaryExpr {
                 _ => Err(unsupported_operator())?,
             },
 
+            (Value::NativeFunc(a), Value::NativeFunc(b)) => match op {
+                Equal => Value::Bool(a == b),
+                NotEqual => Value::Bool(a != b),
+                _ => Err(unsupported_operator())?,
+            },
+
             (Value::Nil, Value::Nil) => match op {
                 Equal => Value::Bool(true),
                 NotEqual => Value::Bool(false),
@@ -267,6 +279,10 @@ impl Evaluate for ast::UnaryExpr {
             Value::Bool(value) => match op {
                 Not => Value::Bool(!value),
                 Neg => Err(unsupported_operator())?,
+            },
+
+            Value::NativeFunc(_) => match op {
+                _ => Err(unsupported_operator())?,
             },
 
             Value::Nil => match op {
