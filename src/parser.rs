@@ -87,11 +87,13 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // statement → exprStmt
 //           | ifStmt
 //           | printStmt
+//           | whileStmt
 //           | block ;
 //
 // exprStmt  → expression ";" ;
 // ifStmt    → "if" "(" expression ")" statement ( "else" statement )? ;
 // printStmt → "print" expression ";" ;
+// whileStmt → "while" "(" expression ")" statement ;
 // block     → "{" declaration* "}" ;
 //
 // expression → assignment ;
@@ -172,6 +174,7 @@ fn statement(input: Input) -> IResult<Stmt> {
         TokenKind::Print => map(print_stmt(input), Stmt::Print),
         TokenKind::LeftBrace => map(block(input), Stmt::Block),
         TokenKind::If => map(cond(input), |cond| Stmt::If(Box::new(cond))),
+        TokenKind::While => map(while_loop(input), |while_loop| Stmt::While(Box::new(while_loop))),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -220,6 +223,16 @@ fn cond(input: Input) -> IResult<Cond> {
     };
 
     Ok((input, Cond {cond, if_body, else_body}))
+}
+
+fn while_loop(input: Input) -> IResult<WhileLoop> {
+    let (input, _) = tk(input, TokenKind::While)?;
+    let (input, _) = tk(input, TokenKind::LeftParen)?;
+    let (input, cond) = expr(input)?;
+    let (input, _) = tk(input, TokenKind::RightParen)?;
+    let (input, body) = statement(input)?;
+
+    Ok((input, WhileLoop {cond, body}))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {

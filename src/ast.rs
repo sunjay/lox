@@ -24,6 +24,7 @@ pub enum Stmt {
     Expr(Expr),
     Block(Block),
     If(Box<Cond>),
+    While(Box<WhileLoop>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +44,12 @@ pub struct Cond {
     pub cond: Expr,
     pub if_body: Stmt,
     pub else_body: Option<Stmt>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileLoop {
+    pub cond: Expr,
+    pub body: Stmt,
 }
 
 #[derive(Debug, Clone, PartialEq)]

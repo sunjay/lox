@@ -62,6 +62,7 @@ impl Evaluate for ast::Stmt {
             Expr(stmt) => stmt.eval(ctx),
             Block(stmt) => stmt.eval(ctx),
             If(stmt) => stmt.eval(ctx),
+            While(stmt) => stmt.eval(ctx),
         }
     }
 }
@@ -100,6 +101,12 @@ impl Evaluate for ast::Cond {
         }
 
         Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::WhileLoop {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        todo!()
     }
 }
 
