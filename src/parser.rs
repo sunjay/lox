@@ -110,8 +110,9 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
 // addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
 // multiplication → unary ( ( "/" | "*" ) unary )* ;
-// unary          → ( "!" | "-" ) unary
-//                | primary ;
+// unary → ( "!" | "-" ) unary | call ;
+// call  → primary ( "(" arguments? ")" )* ;
+// arguments → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "false" | "true" | "nil"
 //                | "(" expression ")" ;
 //
@@ -448,12 +449,44 @@ fn unary(input: Input) -> IResult<Expr> {
         Bang => UnaryOp::Not,
         Minus => UnaryOp::Neg,
     } else { // No matching tokens found
-        return primary(input);
+        return call(input);
     });
 
     let (input, value) = unary(input)?;
 
     Ok((input, Expr::Unary(Box::new(UnaryExpr {op, value}))))
+}
+
+fn call(input: Input) -> IResult<Expr> {
+    let (mut input, mut callee) = primary(input)?;
+
+    while input[0].kind == TokenKind::LeftParen {
+        let (next_input, args) = arguments(input)?;
+        callee = Expr::Call(Box::new(CallExpr {callee, args}));
+        input = next_input;
+    }
+
+    Ok((input, callee))
+}
+
+fn arguments(input: Input) -> IResult<Vec<Expr>> {
+    let (mut input, _) = tk(input, TokenKind::LeftParen)?;
+
+    // This allows trailing commas because yolo
+    let mut args = Vec::new();
+    while input[0].kind != TokenKind::RightParen {
+        let (next_input, arg) = expr(input)?;
+        args.push(arg);
+        input = next_input;
+
+        match tk(input, TokenKind::Comma) {
+            Ok((next_input, _)) => input = next_input,
+            Err(_) => break,
+        }
+    }
+
+    let (input, _) = tk(input, TokenKind::RightParen)?;
+    Ok((input, args))
 }
 
 fn primary(input: Input) -> IResult<Expr> {

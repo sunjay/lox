@@ -125,6 +125,7 @@ impl Evaluate for ast::Expr {
             Assign(expr) => expr.eval(ctx),
             Binary(expr) => expr.eval(ctx),
             Unary(expr) => expr.eval(ctx),
+            Call(expr) => expr.eval(ctx),
             Number(expr) => expr.eval(ctx),
             String(expr) => expr.eval(ctx),
             Bool(expr) => expr.eval(ctx),
@@ -272,6 +273,12 @@ impl Evaluate for ast::UnaryExpr {
                 _ => Err(unsupported_operator())?,
             },
         })
+    }
+}
+
+impl Evaluate for ast::CallExpr {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        todo!()
     }
 }
 

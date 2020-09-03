@@ -58,6 +58,7 @@ pub enum Expr {
     Assign(Box<Assign>),
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
+    Call(Box<CallExpr>),
     Number(NumLit),
     String(StrLit),
     Bool(BoolLit),
@@ -74,6 +75,7 @@ impl Expr {
             Assign(expr) => expr.line(),
             Binary(expr) => expr.line(),
             Unary(expr) => expr.line(),
+            Call(expr) => expr.line(),
             Number(value) => value.line,
             String(value) => value.line,
             Bool(value) => value.line,
@@ -203,6 +205,18 @@ impl fmt::Display for UnaryOp {
             Not => write!(f, "!"),
             Neg => write!(f, "-"),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallExpr {
+    pub callee: Expr,
+    pub args: Vec<Expr>,
+}
+
+impl CallExpr {
+    pub fn line(&self) -> usize {
+        self.callee.line()
     }
 }
 
