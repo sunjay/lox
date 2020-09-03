@@ -42,8 +42,8 @@ impl ParseError {
     }
 }
 
-pub fn parse_expr(input: &[Token]) -> anyhow::Result<Expr> {
-    match expr(input) {
+pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
+    match program(input) {
         Ok((input, expr)) => {
             let (input, _) = tk(input, TokenKind::Eof).map_err(|err| err.to_diag())?;
             assert!(input.is_empty(), "bug: tokens after EOF");
@@ -56,6 +56,15 @@ pub fn parse_expr(input: &[Token]) -> anyhow::Result<Expr> {
 }
 
 // Grammar:
+//
+// program   → statement* EOF ;
+// statement → exprStmt
+//           | printStmt ;
+//
+// exprStmt  → expression ";" ;
+// printStmt → "print" expression ";" ;
+//
+// Source: https://craftinginterpreters.com/statements-and-state.html
 //
 // expression     → equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -87,6 +96,43 @@ macro_rules! match_kinds {
             Err(e) => Err(e)?,
         }
     }};
+}
+
+fn program(mut input: Input) -> IResult<Program> {
+    let mut stmts = Vec::new();
+
+    while input[0].kind != TokenKind::Eof {
+        let (next_input, stmt) = statement(input)?;
+        stmts.push(stmt);
+        input = next_input;
+    }
+
+    Ok((input, Program {stmts}))
+}
+
+fn statement(input: Input) -> IResult<Stmt> {
+    match input[0].kind {
+        TokenKind::Print => print_stmt(input),
+        _ => expr_stmt(input),
+    }
+}
+
+fn print_stmt(input: Input) -> IResult<Stmt> {
+    let (input, print_token) = tk(input, TokenKind::Print)?;
+    let (input, expr) = expr(input)?;
+    let (input, _) = tk(input, TokenKind::Semicolon)?;
+
+    Ok((input, Stmt::Print(PrintStmt {
+        print_token_line: print_token.line,
+        value: expr,
+    })))
+}
+
+fn expr_stmt(input: Input) -> IResult<Stmt> {
+    let (input, expr) = expr(input)?;
+    let (input, _) = tk(input, TokenKind::Semicolon)?;
+
+    Ok((input, Stmt::Expr(expr)))
 }
 
 fn expr(input: Input) -> IResult<Expr> {

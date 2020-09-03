@@ -67,8 +67,9 @@ fn run_prompt() -> anyhow::Result<()> {
 
 fn run(interpreter: &mut Interpreter, source_code: &[u8]) -> anyhow::Result<()> {
     let tokens = scanner::scan_tokens(source_code)?;
-    let expr = parser::parse_expr(&tokens)?;
-    println!("{}", interpreter.eval(expr)?);
+    let program = parser::parse_program(&tokens)?;
+    dbg!(program);
+    // println!("{}", interpreter.eval(expr)?);
 
     Ok(())
 }

@@ -2,6 +2,23 @@ use std::fmt;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Program {
+    pub stmts: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
+    Print(PrintStmt),
+    Expr(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrintStmt {
+    pub print_token_line: usize,
+    pub value: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
