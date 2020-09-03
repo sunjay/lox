@@ -22,12 +22,19 @@ pub struct VarDecl {
 pub enum Stmt {
     Print(PrintStmt),
     Expr(Expr),
+    Block(Block),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrintStmt {
     pub print_token_line: usize,
     pub value: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+    pub start_line: usize,
+    pub decls: Vec<Decl>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -60,6 +60,7 @@ impl Evaluate for ast::Stmt {
         match self {
             Print(stmt) => stmt.eval(ctx),
             Expr(stmt) => stmt.eval(ctx),
+            Block(stmt) => stmt.eval(ctx),
         }
     }
 }
@@ -68,6 +69,20 @@ impl Evaluate for ast::PrintStmt {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
         let value = self.value.eval(ctx)?;
         println!("{}", value);
+
+        Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::Block {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        let Self {start_line: _, decls} = self;
+
+        ctx.env.push_scope();
+        for decl in decls {
+            decl.eval(ctx)?;
+        }
+        ctx.env.pop_scope();
 
         Ok(Value::Nil)
     }

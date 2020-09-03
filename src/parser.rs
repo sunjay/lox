@@ -84,11 +84,13 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 //
 // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
-// statement   → exprStmt
-//             | printStmt ;
+// statement → exprStmt
+//           | printStmt
+//           | block ;
 //
 // exprStmt  → expression ";" ;
 // printStmt → "print" expression ";" ;
+// block     → "{" declaration* "}" ;
 //
 // expression → assignment ;
 // assignment → IDENTIFIER "=" assignment
@@ -164,6 +166,7 @@ fn var_decl(input: Input) -> IResult<VarDecl> {
 fn statement(input: Input) -> IResult<Stmt> {
     match input[0].kind {
         TokenKind::Print => map(print_stmt(input), Stmt::Print),
+        TokenKind::LeftBrace => map(block(input), Stmt::Block),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -176,6 +179,24 @@ fn print_stmt(input: Input) -> IResult<PrintStmt> {
     Ok((input, PrintStmt {
         print_token_line: print_token.line,
         value: expr,
+    }))
+}
+
+fn block(input: Input) -> IResult<Block> {
+    let (mut input, brace_token) = tk(input, TokenKind::LeftBrace)?;
+
+    let mut decls = Vec::new();
+    while input[0].kind != TokenKind::RightBrace {
+        let (next_input, decl) = declaration(input)?;
+        decls.push(decl);
+        input = next_input;
+    }
+
+    let (input, _) = tk(input, TokenKind::RightBrace)?;
+
+    Ok((input, Block {
+        start_line: brace_token.line,
+        decls,
     }))
 }
 
