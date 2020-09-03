@@ -1,22 +1,76 @@
 mod value;
+mod env;
 
 pub use value::*;
+pub use env::*;
 
 use crate::ast;
 use crate::diag::Diagnostic;
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
+    env: Environment,
 }
 
 impl Interpreter {
-    pub fn eval(&mut self, expr: ast::Expr) -> anyhow::Result<Value> {
+    pub fn eval(&mut self, expr: ast::Program) -> anyhow::Result<Value> {
         expr.eval(self)
     }
 }
 
 pub trait Evaluate {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value>;
+}
+
+impl Evaluate for ast::Program {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        let Self {decls} = self;
+        for decl in decls {
+            decl.eval(ctx)?;
+        }
+
+        Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::Decl {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        use ast::Decl::*;
+        match self {
+            VarDecl(var_decl) => var_decl.eval(ctx),
+            Stmt(stmt) => stmt.eval(ctx),
+        }
+    }
+}
+
+impl Evaluate for ast::VarDecl {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        let Self {name, initializer} = self;
+
+        let value = initializer.map(|expr| expr.eval(ctx)).unwrap_or(Ok(Value::Nil))?;
+        ctx.env.insert(name.value.clone(), value);
+
+        Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::Stmt {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        use ast::Stmt::*;
+        match self {
+            Print(stmt) => stmt.eval(ctx),
+            Expr(stmt) => stmt.eval(ctx),
+        }
+    }
+}
+
+impl Evaluate for ast::PrintStmt {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        let value = self.value.eval(ctx)?;
+        println!("{}", value);
+
+        Ok(Value::Nil)
+    }
 }
 
 impl Evaluate for ast::Expr {
@@ -141,8 +195,11 @@ impl Evaluate for ast::BoolLit {
 }
 
 impl Evaluate for ast::Ident {
-    fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        ctx.env.get(&self.value).cloned().ok_or_else(|| Diagnostic {
+            line: self.line,
+            message: format!("Undefined variable `{}`", self.value),
+        }.into())
     }
 }
 

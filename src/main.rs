@@ -10,7 +10,7 @@ use std::path::{PathBuf, Path};
 use structopt::StructOpt;
 use rustyline::{error::ReadlineError, Editor};
 
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Interpreter, Value};
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "lox", about = "An implementation of the lox programming language")]
@@ -68,8 +68,12 @@ fn run_prompt() -> anyhow::Result<()> {
 fn run(interpreter: &mut Interpreter, source_code: &[u8]) -> anyhow::Result<()> {
     let tokens = scanner::scan_tokens(source_code)?;
     let program = parser::parse_program(&tokens)?;
-    dbg!(program);
-    // println!("{}", interpreter.eval(expr)?);
+
+    let value = interpreter.eval(program)?;
+    match value {
+        Value::Nil => {},
+        _ => println!("{}", value),
+    }
 
     Ok(())
 }
