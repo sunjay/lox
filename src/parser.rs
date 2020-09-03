@@ -7,6 +7,12 @@ use crate::ast::*;
 type Input<'a> = &'a [Token];
 type IResult<'a, T> = Result<(Input<'a>, T), ParseError>;
 
+fn map<T, U, F>(value: IResult<T>, f: F) -> IResult<U>
+    where F: FnOnce(T) -> U,
+{
+    value.map(|(input, value)| (input, f(value)))
+}
+
 /// Error type for converting into a diagnostic
 ///
 /// Avoids allocating on every error. Only the final error that is propagated is converted into a
@@ -57,9 +63,15 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 
 // Grammar:
 //
-// program   → statement* EOF ;
-// statement → exprStmt
-//           | printStmt ;
+// program     → declaration* EOF ;
+//
+// declaration → varDecl
+//             | statement ;
+//
+// varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
+//
+// statement   → exprStmt
+//             | printStmt ;
 //
 // exprStmt  → expression ";" ;
 // printStmt → "print" expression ";" ;
@@ -99,40 +111,65 @@ macro_rules! match_kinds {
 }
 
 fn program(mut input: Input) -> IResult<Program> {
-    let mut stmts = Vec::new();
+    let mut decls = Vec::new();
 
     while input[0].kind != TokenKind::Eof {
-        let (next_input, stmt) = statement(input)?;
-        stmts.push(stmt);
+        let (next_input, decl) = declaration(input)?;
+        decls.push(decl);
         input = next_input;
     }
 
-    Ok((input, Program {stmts}))
+    Ok((input, Program {decls}))
+}
+
+fn declaration(input: Input) -> IResult<Decl> {
+    match input[0].kind {
+        TokenKind::Var => map(var_decl(input), Decl::VarDecl),
+        _ => map(statement(input), Decl::Stmt),
+    }
+}
+
+fn var_decl(input: Input) -> IResult<VarDecl> {
+    let (input, _) = tk(input, TokenKind::Var)?;
+    let (input, name) = ident(input)?;
+
+    let (input, initializer) = match input[0].kind {
+        TokenKind::Equal => {
+            let (input, _) = tk(input, TokenKind::Equal)?;
+            let (input, initializer) = expr(input)?;
+            (input, Some(initializer))
+        },
+        _ => (input, None),
+    };
+
+    let (input, _) = tk(input, TokenKind::Semicolon)?;
+
+    Ok((input, VarDecl {name, initializer}))
 }
 
 fn statement(input: Input) -> IResult<Stmt> {
     match input[0].kind {
-        TokenKind::Print => print_stmt(input),
-        _ => expr_stmt(input),
+        TokenKind::Print => map(print_stmt(input), Stmt::Print),
+        _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
 
-fn print_stmt(input: Input) -> IResult<Stmt> {
+fn print_stmt(input: Input) -> IResult<PrintStmt> {
     let (input, print_token) = tk(input, TokenKind::Print)?;
     let (input, expr) = expr(input)?;
     let (input, _) = tk(input, TokenKind::Semicolon)?;
 
-    Ok((input, Stmt::Print(PrintStmt {
+    Ok((input, PrintStmt {
         print_token_line: print_token.line,
         value: expr,
-    })))
+    }))
 }
 
-fn expr_stmt(input: Input) -> IResult<Stmt> {
+fn expr_stmt(input: Input) -> IResult<Expr> {
     let (input, expr) = expr(input)?;
     let (input, _) = tk(input, TokenKind::Semicolon)?;
 
-    Ok((input, Stmt::Expr(expr)))
+    Ok((input, expr))
 }
 
 fn expr(input: Input) -> IResult<Expr> {
@@ -252,11 +289,11 @@ fn unary(input: Input) -> IResult<Expr> {
 
 fn primary(input: Input) -> IResult<Expr> {
     group(input)
-        .or_else(|_| nil(input).map(|(input, value)| (input, Expr::Nil(value))))
-        .or_else(|_| bool_lit(input).map(|(input, value)| (input, Expr::Bool(value))))
-        .or_else(|_| str_lit(input).map(|(input, value)| (input, Expr::String(value))))
-        .or_else(|_| ident(input).map(|(input, value)| (input, Expr::Ident(value))))
-        .or_else(|_| num_lit(input).map(|(input, value)| (input, Expr::Number(value))))
+        .or_else(|_| map(nil(input), Expr::Nil))
+        .or_else(|_| map(bool_lit(input), Expr::Bool))
+        .or_else(|_| map(str_lit(input), Expr::String))
+        .or_else(|_| map(ident(input), Expr::Ident))
+        .or_else(|_| map(num_lit(input), Expr::Number))
 }
 
 fn group(input: Input) -> IResult<Expr> {

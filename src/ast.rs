@@ -3,7 +3,19 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
-    pub stmts: Vec<Stmt>,
+    pub decls: Vec<Decl>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Decl {
+    VarDecl(VarDecl),
+    Stmt(Stmt),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VarDecl {
+    pub name: Ident,
+    pub initializer: Option<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
