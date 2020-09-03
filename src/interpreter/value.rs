@@ -56,4 +56,14 @@ impl Value {
             Nil => Type::Nil,
         }
     }
+
+    pub fn is_truthy(&self) -> bool {
+        use Value::*;
+        match self {
+            Bool(false) |
+            Nil => false,
+
+            _ => true,
+        }
+    }
 }

@@ -93,7 +93,13 @@ impl Evaluate for ast::Cond {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
         let Self {cond, if_body, else_body} = self;
 
-        todo!();
+        if cond.eval(ctx)?.is_truthy() {
+            if_body.eval(ctx)?;
+        } else if let Some(else_body) = else_body {
+            else_body.eval(ctx)?;
+        }
+
+        Ok(Value::Nil)
     }
 }
 
