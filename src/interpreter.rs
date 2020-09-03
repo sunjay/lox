@@ -285,13 +285,20 @@ impl Evaluate for ast::CallExpr {
         let args = args.into_iter()
             .map(|arg| arg.eval(ctx))
             .collect::<Result<Vec<_>, _>>()?;
-        match callee.into_callable() {
-            Some(callee) => callee.call(ctx, args),
-            None => Err(Diagnostic {
+
+        let callable = callee.into_callable().ok_or_else(|| Diagnostic {
+            line: callee_line,
+            message: format!("Can only call functions and classes"),
+        })?;
+
+        if args.len() != callable.arity() {
+            Err(Diagnostic {
                 line: callee_line,
-                message: format!("Can only call functions and classes"),
-            }.into()),
+                message: format!("Expected {} arguments but got {}", callable.arity(), args.len()),
+            })?
         }
+
+        callable.call(ctx, args)
     }
 }
 

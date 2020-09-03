@@ -85,6 +85,11 @@ pub enum Callable {
 }
 
 impl Callable {
+    pub fn arity(&self) -> usize {
+        match *self {
+        }
+    }
+
     pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
         match self {
         }
