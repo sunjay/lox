@@ -85,12 +85,16 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement → exprStmt
+//           | forStmt
 //           | ifStmt
 //           | printStmt
 //           | whileStmt
 //           | block ;
 //
 // exprStmt  → expression ";" ;
+// forStmt   → "for" "(" ( varDecl | exprStmt | ";" )
+//                       expression? ";"
+//                       expression? ")" statement ;
 // ifStmt    → "if" "(" expression ")" statement ( "else" statement )? ;
 // printStmt → "print" expression ";" ;
 // whileStmt → "while" "(" expression ")" statement ;
@@ -175,6 +179,7 @@ fn statement(input: Input) -> IResult<Stmt> {
         TokenKind::LeftBrace => map(block(input), Stmt::Block),
         TokenKind::If => map(cond(input), |cond| Stmt::If(Box::new(cond))),
         TokenKind::While => map(while_loop(input), |while_loop| Stmt::While(Box::new(while_loop))),
+        TokenKind::For => map(for_loop(input), |for_loop| Stmt::For(Box::new(for_loop))),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -233,6 +238,37 @@ fn while_loop(input: Input) -> IResult<WhileLoop> {
     let (input, body) = statement(input)?;
 
     Ok((input, WhileLoop {cond, body}))
+}
+
+fn for_loop(input: Input) -> IResult<ForLoop> {
+    let (input, _) = tk(input, TokenKind::For)?;
+    let (input, _) = tk(input, TokenKind::LeftParen)?;
+
+    let (input, initializer) = match input[0].kind {
+        TokenKind::Var => map(var_decl(input), |decl| Some(ForLoopInit::VarDecl(decl)))?,
+        TokenKind::Semicolon => map(tk(input, TokenKind::Semicolon), |_| None)?,
+        _ => map(expr_stmt(input), |expr| Some(ForLoopInit::Expr(expr)))?,
+    };
+
+    let (input, cond) = if input[0].kind == TokenKind::Semicolon {
+        map(tk(input, TokenKind::Semicolon), |_| None)?
+    } else {
+        let (input, cond) = expr(input)?;
+        let (input, _) = tk(input, TokenKind::Semicolon)?;
+        (input, Some(cond))
+    };
+
+    let (input, increment) = if input[0].kind == TokenKind::RightParen {
+        map(tk(input, TokenKind::RightParen), |_| None)?
+    } else {
+        let (input, increment) = expr(input)?;
+        let (input, _) = tk(input, TokenKind::RightParen)?;
+        (input, Some(increment))
+    };
+
+    let (input, body) = statement(input)?;
+
+    Ok((input, ForLoop {initializer, cond, increment, body}))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {
