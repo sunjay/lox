@@ -123,13 +123,31 @@ impl Evaluate for ast::Expr {
 
 impl Evaluate for ast::LogicalAnd {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let Self {left, right} = self;
+        let left_value = left.eval(ctx)?;
+
+        // short-circuit evaluation
+        if left_value.is_truthy() {
+            let right_value = right.eval(ctx)?;
+            Ok(right_value)
+        } else {
+            Ok(left_value)
+        }
     }
 }
 
 impl Evaluate for ast::LogicalOr {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let Self {left, right} = self;
+        let left_value = left.eval(ctx)?;
+
+        // short-circuit evaluation
+        if left_value.is_truthy() {
+            Ok(left_value)
+        } else {
+            let right_value = right.eval(ctx)?;
+            Ok(right_value)
+        }
     }
 }
 
