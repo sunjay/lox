@@ -61,6 +61,7 @@ impl Evaluate for ast::Stmt {
             Print(stmt) => stmt.eval(ctx),
             Expr(stmt) => stmt.eval(ctx),
             Block(stmt) => stmt.eval(ctx),
+            If(stmt) => stmt.eval(ctx),
         }
     }
 }
@@ -85,6 +86,14 @@ impl Evaluate for ast::Block {
         ctx.env.pop_scope();
 
         Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::Cond {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        let Self {cond, if_body, else_body} = self;
+
+        todo!();
     }
 }
 

@@ -23,6 +23,7 @@ pub enum Stmt {
     Print(PrintStmt),
     Expr(Expr),
     Block(Block),
+    If(Box<Cond>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,6 +36,13 @@ pub struct PrintStmt {
 pub struct Block {
     pub start_line: usize,
     pub decls: Vec<Decl>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cond {
+    pub cond: Expr,
+    pub if_body: Stmt,
+    pub else_body: Option<Stmt>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

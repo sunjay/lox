@@ -85,10 +85,12 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement → exprStmt
+//           | ifStmt
 //           | printStmt
 //           | block ;
 //
 // exprStmt  → expression ";" ;
+// ifStmt    → "if" "(" expression ")" statement ( "else" statement )? ;
 // printStmt → "print" expression ";" ;
 // block     → "{" declaration* "}" ;
 //
@@ -167,6 +169,7 @@ fn statement(input: Input) -> IResult<Stmt> {
     match input[0].kind {
         TokenKind::Print => map(print_stmt(input), Stmt::Print),
         TokenKind::LeftBrace => map(block(input), Stmt::Block),
+        TokenKind::If => map(cond(input), |cond| Stmt::If(Box::new(cond))),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -198,6 +201,23 @@ fn block(input: Input) -> IResult<Block> {
         start_line: brace_token.line,
         decls,
     }))
+}
+
+fn cond(input: Input) -> IResult<Cond> {
+    let (input, _) = tk(input, TokenKind::If)?;
+    let (input, _) = tk(input, TokenKind::LeftParen)?;
+    let (input, cond) = expr(input)?;
+    let (input, _) = tk(input, TokenKind::RightParen)?;
+    let (input, if_body) = statement(input)?;
+
+    let (input, else_body) = if let Ok((input, _)) = tk(input, TokenKind::Else) {
+        let (input, else_body) = statement(input)?;
+        (input, Some(else_body))
+    } else {
+        (input, None)
+    };
+
+    Ok((input, Cond {cond, if_body, else_body}))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {
