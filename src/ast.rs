@@ -47,6 +47,8 @@ pub struct Cond {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    LogicalAnd(Box<LogicalAnd>),
+    LogicalOr(Box<LogicalOr>),
     Assign(Box<Assign>),
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
@@ -61,6 +63,8 @@ impl Expr {
     pub fn line(&self) -> usize {
         use Expr::*;
         match self {
+            LogicalAnd(expr) => expr.line(),
+            LogicalOr(expr) => expr.line(),
             Assign(expr) => expr.line(),
             Binary(expr) => expr.line(),
             Unary(expr) => expr.line(),
@@ -70,6 +74,30 @@ impl Expr {
             Ident(value) => value.line,
             Nil(value) => value.line,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalAnd {
+    pub left: Expr,
+    pub right: Expr,
+}
+
+impl LogicalAnd {
+    pub fn line(&self) -> usize {
+        self.left.line()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalOr {
+    pub left: Expr,
+    pub right: Expr,
+}
+
+impl LogicalOr {
+    pub fn line(&self) -> usize {
+        self.left.line()
     }
 }
 

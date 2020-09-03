@@ -95,8 +95,10 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // block     → "{" declaration* "}" ;
 //
 // expression → assignment ;
-// assignment → IDENTIFIER "=" assignment
-//            | equality ;
+// assignment → identifier "=" assignment
+//            | logic_or ;
+// logic_or   → logic_and ( "or" logic_and )* ;
+// logic_and  → equality ( "and" equality )* ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
 // addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
@@ -232,7 +234,7 @@ fn expr(input: Input) -> IResult<Expr> {
 }
 
 fn assignment(input: Input) -> IResult<Expr> {
-    let (input, lhs) = equality(input)?;
+    let (input, lhs) = logical_or(input)?;
     if let Ok((input, _)) = tk(input, TokenKind::Equal) {
         let lvalue = match lhs {
             Expr::Ident(name) => LValue::Ident(name),
@@ -250,6 +252,26 @@ fn assignment(input: Input) -> IResult<Expr> {
         }))))
     } else {
         Ok((input, lhs))
+    }
+}
+
+fn logical_or(input: Input) -> IResult<Expr> {
+    let (input, left) = logical_and(input)?;
+    if let Ok((input, _)) = tk(input, TokenKind::Or) {
+        let (input, right) = logical_and(input)?;
+        Ok((input, Expr::LogicalOr(Box::new(LogicalOr {left, right}))))
+    } else {
+        Ok((input, left))
+    }
+}
+
+fn logical_and(input: Input) -> IResult<Expr> {
+    let (input, left) = equality(input)?;
+    if let Ok((input, _)) = tk(input, TokenKind::And) {
+        let (input, right) = equality(input)?;
+        Ok((input, Expr::LogicalAnd(Box::new(LogicalAnd {left, right}))))
+    } else {
+        Ok((input, left))
     }
 }
 
