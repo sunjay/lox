@@ -18,10 +18,33 @@ fn map<T, U, F>(value: IResult<T>, f: F) -> IResult<U>
 /// Avoids allocating on every error. Only the final error that is propagated is converted into a
 /// string.
 #[derive(Debug)]
-struct ParseError {
-    line: usize,
-    expected: Expected,
-    found: TokenKind,
+enum ParseError {
+    UnexpectedToken {
+        line: usize,
+        expected: Expected,
+        found: TokenKind,
+    },
+
+    UnsupportedLValue {
+        line: usize,
+    },
+}
+
+impl ParseError {
+    fn to_diag(self) -> Diagnostic {
+        use ParseError::*;
+        match self {
+            UnexpectedToken {line, expected, found} => Diagnostic {
+                line,
+                message: format!("expected {}, found {}", expected, found),
+            },
+
+            UnsupportedLValue {line} => Diagnostic {
+                line,
+                message: format!("Unsupported left-hand side of assignment expression"),
+            },
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -35,15 +58,6 @@ impl fmt::Display for Expected {
         match self {
             Expected::Kind(kind) => write!(f, "{}", kind),
             Expected::Str(value) => write!(f, "{}", value),
-        }
-    }
-}
-
-impl ParseError {
-    fn to_diag(self) -> Diagnostic {
-        Diagnostic {
-            line: self.line,
-            message: format!("expected {}, found {}", self.expected, self.found)
         }
     }
 }
@@ -76,9 +90,9 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // exprStmt  → expression ";" ;
 // printStmt → "print" expression ";" ;
 //
-// Source: https://craftinginterpreters.com/statements-and-state.html
-//
-// expression     → equality ;
+// expression → assignment ;
+// assignment → IDENTIFIER "=" assignment
+//            | equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
 // addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
@@ -88,7 +102,7 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // primary        → NUMBER | STRING | "false" | "true" | "nil"
 //                | "(" expression ")" ;
 //
-// Source: https://craftinginterpreters.com/parsing-expressions.html
+// Source: https://craftinginterpreters.com
 
 macro_rules! match_kinds {
     (
@@ -173,7 +187,29 @@ fn expr_stmt(input: Input) -> IResult<Expr> {
 }
 
 fn expr(input: Input) -> IResult<Expr> {
-    equality(input)
+    assignment(input)
+}
+
+fn assignment(input: Input) -> IResult<Expr> {
+    let (input, lhs) = equality(input)?;
+    if let Ok((input, _)) = tk(input, TokenKind::Equal) {
+        let lvalue = match lhs {
+            Expr::Ident(name) => LValue::Ident(name),
+
+            _ => Err(ParseError::UnsupportedLValue {
+                line: lhs.line(),
+            })?,
+        };
+
+        let (input, rhs) = assignment(input)?;
+
+        Ok((input, Expr::Assign(Box::new(Assign {
+            lvalue,
+            rhs,
+        }))))
+    } else {
+        Ok((input, lhs))
+    }
 }
 
 fn equality(input: Input) -> IResult<Expr> {
@@ -330,7 +366,7 @@ fn str_lit(input: Input) -> IResult<StrLit> {
             line: token.line,
         })),
 
-        _ => Err(ParseError {
+        _ => Err(ParseError::UnexpectedToken {
             line: token.line,
             expected: Expected::Str("a string literal"),
             found: token.kind.clone(),
@@ -346,7 +382,7 @@ fn ident(input: Input) -> IResult<Ident> {
             line: token.line,
         })),
 
-        _ => Err(ParseError {
+        _ => Err(ParseError::UnexpectedToken {
             line: token.line,
             expected: Expected::Str("an identifier"),
             found: token.kind.clone(),
@@ -362,7 +398,7 @@ fn num_lit(input: Input) -> IResult<NumLit> {
             line: token.line,
         })),
 
-        _ => Err(ParseError {
+        _ => Err(ParseError::UnexpectedToken {
             line: token.line,
             expected: Expected::Str("a number literal"),
             found: token.kind.clone(),
@@ -393,7 +429,7 @@ fn tk(input: Input, kind: TokenKind) -> IResult<&Token> {
     if token.kind == kind {
         Ok((&input[1..], token))
     } else {
-        Err(ParseError {
+        Err(ParseError::UnexpectedToken {
             line: token.line,
             expected: Expected::Kind(kind.clone()),
             found: token.kind.clone(),

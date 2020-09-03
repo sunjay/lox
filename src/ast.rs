@@ -32,6 +32,7 @@ pub struct PrintStmt {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    Assign(Box<Assign>),
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
     Number(NumLit),
@@ -45,6 +46,7 @@ impl Expr {
     pub fn line(&self) -> usize {
         use Expr::*;
         match self {
+            Assign(expr) => expr.line(),
             Binary(expr) => expr.line(),
             Unary(expr) => expr.line(),
             Number(value) => value.line,
@@ -52,6 +54,32 @@ impl Expr {
             Bool(value) => value.line,
             Ident(value) => value.line,
             Nil(value) => value.line,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assign {
+    pub lvalue: LValue,
+    pub rhs: Expr,
+}
+
+impl Assign {
+    pub fn line(&self) -> usize {
+        self.lvalue.line()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LValue {
+    Ident(Ident),
+}
+
+impl LValue {
+    pub fn line(&self) -> usize {
+        use LValue::*;
+        match self {
+            Ident(ident) => ident.line,
         }
     }
 }

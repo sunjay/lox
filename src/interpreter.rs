@@ -77,6 +77,7 @@ impl Evaluate for ast::Expr {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
         use ast::Expr::*;
         match self {
+            Assign(expr) => expr.eval(ctx),
             Binary(expr) => expr.eval(ctx),
             Unary(expr) => expr.eval(ctx),
             Number(expr) => expr.eval(ctx),
@@ -85,6 +86,12 @@ impl Evaluate for ast::Expr {
             Ident(expr) => expr.eval(ctx),
             Nil(expr) => expr.eval(ctx),
         }
+    }
+}
+
+impl Evaluate for ast::Assign {
+    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+        todo!()
     }
 }
 
