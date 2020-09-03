@@ -106,7 +106,13 @@ impl Evaluate for ast::Cond {
 
 impl Evaluate for ast::WhileLoop {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let Self {cond, body} = self;
+
+        while cond.clone().eval(ctx)?.is_truthy() {
+            body.clone().eval(ctx)?;
+        }
+
+        Ok(Value::Nil)
     }
 }
 
