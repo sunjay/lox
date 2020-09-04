@@ -30,7 +30,7 @@ impl fmt::Display for Type {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Number(f64),
-    Bytes(Vec<u8>),
+    Bytes(Arc<[u8]>),
     Bool(bool),
     NativeFunc(SharedNativeFunc),
     Func(SharedFunc),
@@ -44,7 +44,7 @@ impl fmt::Display for Value {
             Number(value) => write!(f, "{}", value),
             Bytes(value) => {
                 // Write out bytes as ASCII
-                for &byte in value {
+                for &byte in &**value {
                     write!(f, "{}", byte as char)?;
                 }
                 Ok(())

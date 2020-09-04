@@ -236,6 +236,7 @@ impl Evaluate for ast::BinaryExpr {
             (Value::Bytes(a), Value::Bytes(b)) => match op {
                 Equal => Value::Bool(a == b),
                 NotEqual => Value::Bool(a != b),
+                Add => Value::Bytes(a.iter().copied().chain(b.iter().copied()).collect()),
                 _ => Err(unsupported_operator())?,
             },
 
@@ -345,7 +346,7 @@ impl Evaluate for ast::NumLit {
 
 impl Evaluate for ast::StrLit {
     fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        Ok(Value::Bytes(self.value.iter().copied().collect()))
+        Ok(Value::Bytes(self.value))
     }
 }
 
