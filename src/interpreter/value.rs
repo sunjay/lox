@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::ast;
 
-use super::Interpreter;
+use super::{Interpreter, Evaluate};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -160,7 +160,19 @@ impl SharedFunc {
     }
 
     fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
-        todo!()
+        ctx.env.push_scope_global();
+
+        let ast::FuncDecl {name: _, params, body} = &*self.0;
+        debug_assert_eq!(params.len(), args.len());
+        for (param, arg) in params.iter().zip(args) {
+            ctx.env.insert(param.value.clone(), arg);
+        }
+
+        let value = body.clone().eval(ctx)?;
+
+        ctx.env.pop_scope();
+
+        Ok(value)
     }
 }
 
