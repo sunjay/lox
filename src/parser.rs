@@ -111,6 +111,7 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 //           | forStmt
 //           | ifStmt
 //           | printStmt
+//           | returnStmt
 //           | whileStmt
 //           | block ;
 //
@@ -120,6 +121,7 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 //                       expression? ")" statement ;
 // ifStmt    → "if" "(" expression ")" statement ( "else" statement )? ;
 // printStmt → "print" expression ";" ;
+// returnStmt → "return" expression? ";" ;
 // whileStmt → "while" "(" expression ")" statement ;
 // block     → "{" declaration* "}" ;
 //
@@ -243,6 +245,7 @@ fn statement(input: Input) -> IResult<Stmt> {
         TokenKind::If => map(cond(input), |cond| Stmt::If(Box::new(cond))),
         TokenKind::While => map(while_loop(input), |while_loop| Stmt::While(Box::new(while_loop))),
         TokenKind::For => for_loop(input),
+        TokenKind::Return => map(return_stmt(input), |ret| Stmt::Return(Box::new(ret))),
         _ => map(expr_stmt(input), Stmt::Expr),
     }
 }
@@ -348,6 +351,18 @@ fn for_loop(input: Input) -> IResult<Stmt> {
     });
 
     Ok((input, for_loop))
+}
+
+fn return_stmt(input: Input) -> IResult<Return> {
+    let (input, _) = tk(input, TokenKind::Return)?;
+    let (input, expr) = if input[0].kind != TokenKind::Semicolon {
+        map(expr(input), Some)?
+    } else {
+        (input, None)
+    };
+    let (input, _) = tk(input, TokenKind::Semicolon)?;
+
+    Ok((input, Return {expr}))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {
