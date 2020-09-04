@@ -7,6 +7,23 @@ pub use env::*;
 use crate::{ast, prelude};
 use crate::diag::Diagnostic;
 
+pub type EvalResult = Result<Value, ControlFlow>;
+
+#[derive(Debug)]
+pub enum ControlFlow {
+    Return {
+        line: usize,
+        value: Value,
+    },
+    RuntimeError(Diagnostic),
+}
+
+impl From<Diagnostic> for ControlFlow {
+    fn from(diag: Diagnostic) -> Self {
+        ControlFlow::RuntimeError(diag)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Interpreter {
     pub(crate) env: Environment,
@@ -20,16 +37,24 @@ impl Interpreter {
     }
 
     pub fn eval(&mut self, expr: ast::Program) -> anyhow::Result<Value> {
-        expr.eval(self)
+        use ControlFlow::*;
+        Ok(expr.eval(self).map_err(|err| match err {
+            Return {line, ..} => Diagnostic {
+                line,
+                message: "return is not allowed outside function".to_string(),
+            },
+
+            RuntimeError(diag) => diag,
+        })?)
     }
 }
 
 pub trait Evaluate {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value>;
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult;
 }
 
 impl Evaluate for ast::Program {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {decls} = self;
         for decl in decls {
             decl.eval(ctx)?;
@@ -40,7 +65,7 @@ impl Evaluate for ast::Program {
 }
 
 impl Evaluate for ast::Decl {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         use ast::Decl::*;
         match self {
             VarDecl(var_decl) => var_decl.eval(ctx),
@@ -51,7 +76,7 @@ impl Evaluate for ast::Decl {
 }
 
 impl Evaluate for ast::VarDecl {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {name, initializer} = self;
 
         let value = initializer.map(|expr| expr.eval(ctx)).unwrap_or(Ok(Value::Nil))?;
@@ -62,7 +87,7 @@ impl Evaluate for ast::VarDecl {
 }
 
 impl Evaluate for ast::FuncDecl {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let name = self.name.value.clone();
         ctx.env.insert(name, Value::Func(self.into()));
         Ok(Value::Nil)
@@ -70,7 +95,7 @@ impl Evaluate for ast::FuncDecl {
 }
 
 impl Evaluate for ast::Stmt {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         use ast::Stmt::*;
         match self {
             Print(stmt) => stmt.eval(ctx),
@@ -84,7 +109,7 @@ impl Evaluate for ast::Stmt {
 }
 
 impl Evaluate for ast::PrintStmt {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let value = self.value.eval(ctx)?;
         println!("{}", value);
 
@@ -93,7 +118,7 @@ impl Evaluate for ast::PrintStmt {
 }
 
 impl Evaluate for ast::Block {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {decls} = self;
 
         ctx.env.push_scope();
@@ -107,7 +132,7 @@ impl Evaluate for ast::Block {
 }
 
 impl Evaluate for ast::Cond {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {cond, if_body, else_body} = self;
 
         if cond.eval(ctx)?.is_truthy() {
@@ -121,7 +146,7 @@ impl Evaluate for ast::Cond {
 }
 
 impl Evaluate for ast::WhileLoop {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {cond, body} = self;
 
         while cond.clone().eval(ctx)?.is_truthy() {
@@ -133,13 +158,19 @@ impl Evaluate for ast::WhileLoop {
 }
 
 impl Evaluate for ast::Return {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
+        let Self {return_line, expr} = self;
+        let value = expr.map(|expr| expr.eval(ctx)).unwrap_or(Ok(Value::Nil))?;
+
+        Err(ControlFlow::Return {
+            line: return_line,
+            value,
+        })
     }
 }
 
 impl Evaluate for ast::Expr {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         use ast::Expr::*;
         match self {
             LogicalAnd(expr) => expr.eval(ctx),
@@ -158,7 +189,7 @@ impl Evaluate for ast::Expr {
 }
 
 impl Evaluate for ast::LogicalAnd {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {left, right} = self;
         let left_value = left.eval(ctx)?;
 
@@ -173,7 +204,7 @@ impl Evaluate for ast::LogicalAnd {
 }
 
 impl Evaluate for ast::LogicalOr {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {left, right} = self;
         let left_value = left.eval(ctx)?;
 
@@ -188,7 +219,7 @@ impl Evaluate for ast::LogicalOr {
 }
 
 impl Evaluate for ast::Assign {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {lvalue, rhs} = self;
         let line = lvalue.line();
 
@@ -211,7 +242,7 @@ impl Evaluate for ast::Assign {
 }
 
 impl Evaluate for ast::BinaryExpr {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {left, op, right} = self;
         let line = left.line();
 
@@ -277,7 +308,7 @@ impl Evaluate for ast::BinaryExpr {
 }
 
 impl Evaluate for ast::UnaryExpr {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {op, value} = self;
         let line = value.line();
 
@@ -320,7 +351,7 @@ impl Evaluate for ast::UnaryExpr {
 }
 
 impl Evaluate for ast::CallExpr {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {callee, args} = self;
 
         let callee_line = callee.line();
@@ -341,30 +372,35 @@ impl Evaluate for ast::CallExpr {
             })?
         }
 
-        callable.call(ctx, args)
+        match callable.call(ctx, args) {
+            Ok(value) |
+            Err(ControlFlow::Return {value, ..}) => Ok(value),
+
+            Err(err) => Err(err),
+        }
     }
 }
 
 impl Evaluate for ast::NumLit {
-    fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, _ctx: &mut Interpreter) -> EvalResult {
         Ok(Value::Number(self.value))
     }
 }
 
 impl Evaluate for ast::StrLit {
-    fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, _ctx: &mut Interpreter) -> EvalResult {
         Ok(Value::Bytes(self.value))
     }
 }
 
 impl Evaluate for ast::BoolLit {
-    fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, _ctx: &mut Interpreter) -> EvalResult {
         Ok(Value::Bool(self.value))
     }
 }
 
 impl Evaluate for ast::Ident {
-    fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         ctx.env.get(&self.value).cloned().ok_or_else(|| Diagnostic {
             line: self.line,
             message: format!("Undefined variable `{}`", self.value),
@@ -373,7 +409,7 @@ impl Evaluate for ast::Ident {
 }
 
 impl Evaluate for ast::Nil {
-    fn eval(self, _ctx: &mut Interpreter) -> anyhow::Result<Value> {
+    fn eval(self, _ctx: &mut Interpreter) -> EvalResult {
         Ok(Value::Nil)
     }
 }

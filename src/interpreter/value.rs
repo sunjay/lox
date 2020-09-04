@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::ast;
 
-use super::{Interpreter, Evaluate};
+use super::{Interpreter, Evaluate, EvalResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -97,18 +97,18 @@ impl Value {
 pub trait NativeFunc {
     fn arity(&self) -> usize;
 
-    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value>;
+    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult;
 }
 
 // For functions with greater than zero arity, implement NativeFunc manually on a new type
 impl<F> NativeFunc for F
-    where F: Fn(&mut Interpreter) -> anyhow::Result<Value>,
+    where F: Fn(&mut Interpreter) -> EvalResult,
 {
     fn arity(&self) -> usize {
         0
     }
 
-    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
         debug_assert_eq!(args.len(), 0);
         self(ctx)
     }
@@ -128,7 +128,7 @@ impl SharedNativeFunc {
         self.0.arity()
     }
 
-    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
         self.0.call(ctx, args)
     }
 }
@@ -159,7 +159,7 @@ impl SharedFunc {
         self.0.params.len()
     }
 
-    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
         ctx.env.push_scope_global();
 
         let ast::FuncDecl {name: _, params, body} = &*self.0;
@@ -203,7 +203,7 @@ impl Callable {
         }
     }
 
-    pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+    pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
         use Callable::*;
         match self {
             NativeFunc(func) => func.call(ctx, args),

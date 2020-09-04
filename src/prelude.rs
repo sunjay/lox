@@ -1,12 +1,12 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::interpreter::{Interpreter, Value};
+use crate::interpreter::{Interpreter, Value, EvalResult};
 
 pub fn populate_prelude(ctx: &mut Interpreter) {
     ctx.env.insert("clock".into(), Value::NativeFunc(clock.into()))
 }
 
-fn clock(_ctx: &mut Interpreter) -> anyhow::Result<Value> {
+fn clock(_ctx: &mut Interpreter) -> EvalResult {
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
