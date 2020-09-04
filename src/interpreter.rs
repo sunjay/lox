@@ -63,7 +63,9 @@ impl Evaluate for ast::VarDecl {
 
 impl Evaluate for ast::FuncDecl {
     fn eval(self, ctx: &mut Interpreter) -> anyhow::Result<Value> {
-        todo!()
+        let name = self.name.value.clone();
+        ctx.env.insert(name, Value::Func(self.into()));
+        Ok(Value::Nil)
     }
 }
 
@@ -249,6 +251,12 @@ impl Evaluate for ast::BinaryExpr {
                 _ => Err(unsupported_operator())?,
             },
 
+            (Value::Func(a), Value::Func(b)) => match op {
+                Equal => Value::Bool(a == b),
+                NotEqual => Value::Bool(a != b),
+                _ => Err(unsupported_operator())?,
+            },
+
             (Value::Nil, Value::Nil) => match op {
                 Equal => Value::Bool(true),
                 NotEqual => Value::Bool(false),
@@ -289,6 +297,10 @@ impl Evaluate for ast::UnaryExpr {
             },
 
             Value::NativeFunc(_) => match op {
+                _ => Err(unsupported_operator())?,
+            },
+
+            Value::Func(_) => match op {
                 _ => Err(unsupported_operator())?,
             },
 

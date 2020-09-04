@@ -1,6 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+use crate::ast;
+
 use super::Interpreter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -31,6 +33,7 @@ pub enum Value {
     Bytes(Vec<u8>),
     Bool(bool),
     NativeFunc(SharedNativeFunc),
+    Func(SharedFunc),
     Nil,
 }
 
@@ -48,6 +51,7 @@ impl fmt::Display for Value {
             },
             Bool(value) => write!(f, "{}", value),
             NativeFunc(_) => write!(f, "<native func>"),
+            Func(func) => write!(f, "{}", func),
             Nil => write!(f, "nil"),
         }
     }
@@ -60,7 +64,8 @@ impl Value {
             Number(_) => Type::Number,
             Bytes(_) => Type::Bytes,
             Bool(_) => Type::Bool,
-            NativeFunc(_) => Type::Func,
+            NativeFunc(_) |
+            Func(_) => Type::Func,
             Nil => Type::Nil,
         }
     }
@@ -84,6 +89,7 @@ impl Value {
             Nil => None,
 
             NativeFunc(func) => Some(Callable::NativeFunc(func)),
+            Func(func) => Some(Callable::Func(func)),
         }
     }
 }
@@ -129,7 +135,7 @@ impl SharedNativeFunc {
 
 impl fmt::Debug for SharedNativeFunc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<native func>")
+        write!(f, "<native fn>")
     }
 }
 
@@ -139,9 +145,41 @@ impl PartialEq for SharedNativeFunc {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct SharedFunc(Arc<ast::FuncDecl>);
+
+impl From<ast::FuncDecl> for SharedFunc {
+    fn from(value: ast::FuncDecl) -> Self {
+        SharedFunc(Arc::new(value))
+    }
+}
+
+impl SharedFunc {
+    fn arity(&self) -> usize {
+        self.0.params.len()
+    }
+
+    fn call(&self, ctx: &mut Interpreter, args: Vec<Value>) -> anyhow::Result<Value> {
+        todo!()
+    }
+}
+
+impl fmt::Display for SharedFunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<fun {}>", self.0.name.value)
+    }
+}
+
+impl PartialEq for SharedFunc {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Callable {
     NativeFunc(SharedNativeFunc),
+    Func(SharedFunc),
 }
 
 impl Callable {
@@ -149,6 +187,7 @@ impl Callable {
         use Callable::*;
         match self {
             NativeFunc(func) => func.arity(),
+            Func(func) => func.arity(),
         }
     }
 
@@ -156,6 +195,7 @@ impl Callable {
         use Callable::*;
         match self {
             NativeFunc(func) => func.call(ctx, args),
+            Func(func) => func.call(ctx, args),
         }
     }
 }
