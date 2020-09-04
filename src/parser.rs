@@ -354,7 +354,7 @@ fn for_loop(input: Input) -> IResult<Stmt> {
 }
 
 fn return_stmt(input: Input) -> IResult<Return> {
-    let (input, _) = tk(input, TokenKind::Return)?;
+    let (input, return_token) = tk(input, TokenKind::Return)?;
     let (input, expr) = if input[0].kind != TokenKind::Semicolon {
         map(expr(input), Some)?
     } else {
@@ -362,7 +362,10 @@ fn return_stmt(input: Input) -> IResult<Return> {
     };
     let (input, _) = tk(input, TokenKind::Semicolon)?;
 
-    Ok((input, Return {expr}))
+    Ok((input, Return {
+        return_line: return_token.line,
+        expr,
+    }))
 }
 
 fn expr_stmt(input: Input) -> IResult<Expr> {

@@ -62,6 +62,7 @@ pub struct WhileLoop {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
+    pub return_line: usize,
     pub expr: Option<Expr>,
 }
 
