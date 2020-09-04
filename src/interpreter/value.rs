@@ -168,11 +168,11 @@ impl SharedFunc {
             ctx.env.insert(param.value.clone(), arg);
         }
 
-        let value = body.clone().eval(ctx)?;
+        let value = body.clone().eval(ctx);
 
         ctx.env.pop_scope();
 
-        Ok(value)
+        value
     }
 }
 

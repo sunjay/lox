@@ -121,13 +121,18 @@ impl Evaluate for ast::Block {
     fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         let Self {decls} = self;
 
+        let mut res = Ok(Value::Nil);
+
         ctx.env.push_scope();
         for decl in decls {
-            decl.eval(ctx)?;
+            if let Err(err) = decl.eval(ctx) {
+                res = Err(err);
+                break;
+            }
         }
         ctx.env.pop_scope();
 
-        Ok(Value::Nil)
+        res
     }
 }
 
