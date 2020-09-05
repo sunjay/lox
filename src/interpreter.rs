@@ -68,8 +68,9 @@ impl Evaluate for ast::Decl {
     fn eval(self, ctx: &mut Interpreter) -> EvalResult {
         use ast::Decl::*;
         match self {
-            VarDecl(var_decl) => var_decl.eval(ctx),
-            FuncDecl(var_decl) => var_decl.eval(ctx),
+            VarDecl(decl) => decl.eval(ctx),
+            FuncDecl(decl) => decl.eval(ctx),
+            ClassDecl(decl) => decl.eval(ctx),
             Stmt(stmt) => stmt.eval(ctx),
         }
     }
@@ -91,6 +92,12 @@ impl Evaluate for ast::FuncDecl {
         let name = self.name.value.clone();
         ctx.env.insert(name, Value::Func(self.into()));
         Ok(Value::Nil)
+    }
+}
+
+impl Evaluate for ast::ClassDecl {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
+        todo!()
     }
 }
 

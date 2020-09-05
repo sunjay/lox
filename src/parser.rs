@@ -98,10 +98,12 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 //
 // program     → declaration* EOF ;
 //
-// declaration → funDecl
+// declaration → classDecl
+//             | funDecl
 //             | varDecl
 //             | statement ;
 //
+// classDecl   → "class" IDENTIFIER "{" funDecl* "}" ;
 // funDecl  → "fun" function ;
 // function → IDENTIFIER "(" parameters? ")" block ;
 // parameters → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -178,6 +180,7 @@ fn declaration(input: Input) -> IResult<Decl> {
     match input[0].kind {
         TokenKind::Var => map(var_decl(input), Decl::VarDecl),
         TokenKind::Fun => map(func_decl(input), Decl::FuncDecl),
+        TokenKind::Class => map(class_decl(input), Decl::ClassDecl),
         _ => map(statement(input), Decl::Stmt),
     }
 }
@@ -207,6 +210,23 @@ fn func_decl(input: Input) -> IResult<FuncDecl> {
     let (input, body) = block(input)?;
 
     Ok((input, FuncDecl {name, params, body}))
+}
+
+fn class_decl(input: Input) -> IResult<ClassDecl> {
+    let (input, _) = tk(input, TokenKind::Class)?;
+    let (input, name) = ident(input)?;
+
+    let (mut input, _) = tk(input, TokenKind::LeftBrace)?;
+    let mut methods = Vec::new();
+    while input[0].kind != TokenKind::RightBrace {
+        let (next_input, method) = func_decl(input)?;
+        methods.push(method);
+        input = next_input;
+    }
+
+    let (input, _) = tk(input, TokenKind::RightBrace)?;
+
+    Ok((input, ClassDecl {name, methods}))
 }
 
 fn parameters(input: Input) -> IResult<Vec<Ident>> {

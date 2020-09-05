@@ -8,9 +8,16 @@ pub struct Program {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
+    ClassDecl(ClassDecl),
     VarDecl(VarDecl),
     FuncDecl(FuncDecl),
     Stmt(Stmt),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDecl {
+    pub name: Ident,
+    pub methods: Vec<FuncDecl>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
