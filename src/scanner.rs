@@ -144,7 +144,7 @@ impl<'a> Scanner<'a> {
         let mut found = 0;
 
         // Consume all alphanumeric characters available
-        while matches!(self.input.get(0), Some(b'0'..=b'9') | Some(b'a' ..= b'z') | Some(b'A' ..= b'Z')) {
+        while matches!(self.input.get(0), Some(b'0'..=b'9') | Some(b'a' ..= b'z') | Some(b'A' ..= b'Z') | Some(b'_')) {
             self.input = &self.input[1..];
             found += 1;
         }
