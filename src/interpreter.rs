@@ -419,7 +419,23 @@ impl Evaluate for ast::CallExpr {
 
 impl Evaluate for ast::FieldAccess {
     fn eval(self, ctx: &mut Interpreter) -> EvalResult {
-        todo!()
+        let Self {expr, field} = self;
+
+        let line = expr.line();
+        let value = expr.eval(ctx)?;
+        match value {
+            Value::Instance(instance) => {
+                Ok(instance.get(&field.value).ok_or_else(|| Diagnostic {
+                    line: field.line,
+                    message: format!("Undefined property `{}`", field.value),
+                })?)
+            },
+
+            _ => Err(Diagnostic {
+                line,
+                message: "Only instances have properties".to_string(),
+            })?,
+        }
     }
 }
 

@@ -1,5 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
+use std::collections::HashMap;
+
+use parking_lot::Mutex;
 
 use crate::ast;
 
@@ -215,9 +218,7 @@ impl SharedClass {
     }
 
     fn call(&self, _ctx: &mut Interpreter, _args: Vec<Value>) -> EvalResult {
-        let instance = Instance {
-            class: self.0.clone(),
-        };
+        let instance = Instance::from(self.0.clone());
 
         Ok(Value::Instance(instance.into()))
     }
@@ -265,23 +266,42 @@ impl Callable {
 #[derive(Clone, Debug)]
 pub struct Instance {
     class: Arc<ast::ClassDecl>,
+    fields: HashMap<Arc<str>, Value>,
+}
+
+impl From<Arc<ast::ClassDecl>> for Instance {
+    fn from(class: Arc<ast::ClassDecl>) -> Self {
+        Self {
+            class,
+            fields: Default::default(),
+        }
+    }
+}
+
+impl Instance {
+    pub fn get(&self, field: &str) -> Option<&Value> {
+        self.fields.get(field)
+    }
 }
 
 #[derive(Clone, Debug)]
-pub struct SharedInstance(Arc<Instance>);
+pub struct SharedInstance(Arc<Mutex<Instance>>);
 
 impl From<Instance> for SharedInstance {
     fn from(value: Instance) -> Self {
-        SharedInstance(Arc::new(value))
+        SharedInstance(Arc::new(Mutex::new(value)))
     }
 }
 
 impl SharedInstance {
+    pub fn get(&self, field: &str) -> Option<Value> {
+        self.0.lock().get(field).cloned()
+    }
 }
 
 impl fmt::Display for SharedInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<instance {}>", self.0.class.name.value)
+        write!(f, "<instance {}>", self.0.lock().class.name.value)
     }
 }
 
