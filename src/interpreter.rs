@@ -193,6 +193,7 @@ impl Evaluate for ast::Expr {
             Binary(expr) => expr.eval(ctx),
             Unary(expr) => expr.eval(ctx),
             Call(expr) => expr.eval(ctx),
+            FieldAccess(expr) => expr.eval(ctx),
             Number(expr) => expr.eval(ctx),
             String(expr) => expr.eval(ctx),
             Bool(expr) => expr.eval(ctx),
@@ -413,6 +414,12 @@ impl Evaluate for ast::CallExpr {
 
             Err(err) => Err(err),
         }
+    }
+}
+
+impl Evaluate for ast::FieldAccess {
+    fn eval(self, ctx: &mut Interpreter) -> EvalResult {
+        todo!()
     }
 }
 

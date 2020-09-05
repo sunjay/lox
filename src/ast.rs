@@ -81,6 +81,7 @@ pub enum Expr {
     Binary(Box<BinaryExpr>),
     Unary(Box<UnaryExpr>),
     Call(Box<CallExpr>),
+    FieldAccess(Box<FieldAccess>),
     Number(NumLit),
     String(StrLit),
     Bool(BoolLit),
@@ -98,6 +99,7 @@ impl Expr {
             Binary(expr) => expr.line(),
             Unary(expr) => expr.line(),
             Call(expr) => expr.line(),
+            FieldAccess(expr) => expr.line(),
             Number(value) => value.line,
             String(value) => value.line,
             Bool(value) => value.line,
@@ -239,6 +241,18 @@ pub struct CallExpr {
 impl CallExpr {
     pub fn line(&self) -> usize {
         self.callee.line()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldAccess {
+    pub expr: Expr,
+    pub field: Ident,
+}
+
+impl FieldAccess {
+    pub fn line(&self) -> usize {
+        self.expr.line()
     }
 }
 

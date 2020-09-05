@@ -137,7 +137,7 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
 // multiplication → unary ( ( "/" | "*" ) unary )* ;
 // unary → ( "!" | "-" ) unary | call ;
-// call  → primary ( "(" arguments? ")" )* ;
+// call → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 // arguments → expression ( "," expression )* ;
 // primary        → NUMBER | STRING | "false" | "true" | "nil"
 //                | "(" expression ")" ;
@@ -559,10 +559,26 @@ fn unary(input: Input) -> IResult<Expr> {
 fn call(input: Input) -> IResult<Expr> {
     let (mut input, mut callee) = primary(input)?;
 
-    while input[0].kind == TokenKind::LeftParen {
-        let (next_input, args) = arguments(input)?;
-        callee = Expr::Call(Box::new(CallExpr {callee, args}));
-        input = next_input;
+    loop {
+        match input[0].kind {
+            TokenKind::LeftParen => {
+                let (next_input, args) = arguments(input)?;
+                callee = Expr::Call(Box::new(CallExpr {callee, args}));
+                input = next_input;
+            },
+
+            TokenKind::Dot => {
+                let (next_input, _) = tk(input, TokenKind::Dot)?;
+                let (next_input, field) = ident(next_input)?;
+                callee = Expr::FieldAccess(Box::new(FieldAccess {
+                    expr: callee,
+                    field,
+                }));
+                input = next_input;
+            },
+
+            _ => break,
+        };
     }
 
     Ok((input, callee))
