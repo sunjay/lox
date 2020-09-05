@@ -238,11 +238,11 @@ impl Evaluate for ast::Assign {
         let Self {lvalue, rhs} = self;
         let line = lvalue.line();
 
-        let value = rhs.eval(ctx)?;
-
         use ast::LValue::*;
         match lvalue {
             Ident(name) => {
+                let value = rhs.eval(ctx)?;
+
                 let entry = ctx.env.get_mut(&name.value).ok_or_else(|| Diagnostic {
                     line,
                     message: format!("Undefined variable `{}`", name.value),
@@ -251,6 +251,23 @@ impl Evaluate for ast::Assign {
                 *entry = value.clone();
 
                 Ok(value)
+            },
+
+            Field(ast::FieldAccess {expr, field}) => {
+                match expr.eval(ctx)? {
+                    Value::Instance(instance) => {
+                        let value = rhs.eval(ctx)?;
+
+                        instance.set(field.value.clone(), value.clone());
+
+                        Ok(value)
+                    },
+
+                    _ => Err(Diagnostic {
+                        line,
+                        message: "Only instances have properties".to_string(),
+                    })?,
+                }
             },
         }
     }

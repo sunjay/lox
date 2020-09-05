@@ -148,6 +148,7 @@ impl Assign {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LValue {
     Ident(Ident),
+    Field(FieldAccess),
 }
 
 impl LValue {
@@ -155,6 +156,7 @@ impl LValue {
         use LValue::*;
         match self {
             Ident(ident) => ident.line,
+            Field(field) => field.line(),
         }
     }
 }

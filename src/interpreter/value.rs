@@ -282,6 +282,10 @@ impl Instance {
     pub fn get(&self, field: &str) -> Option<&Value> {
         self.fields.get(field)
     }
+
+    pub fn set(&mut self, field: Arc<str>, value: Value) {
+        self.fields.insert(field, value);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -296,6 +300,10 @@ impl From<Instance> for SharedInstance {
 impl SharedInstance {
     pub fn get(&self, field: &str) -> Option<Value> {
         self.0.lock().get(field).cloned()
+    }
+
+    pub fn set(&self, field: Arc<str>, value: Value) {
+        self.0.lock().set(field, value);
     }
 }
 

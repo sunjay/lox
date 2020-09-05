@@ -128,7 +128,7 @@ pub fn parse_program(input: &[Token]) -> anyhow::Result<Program> {
 // block     → "{" declaration* "}" ;
 //
 // expression → assignment ;
-// assignment → identifier "=" assignment
+// assignment → ( call "." )? IDENTIFIER "=" assignment
 //            | logic_or ;
 // logic_or   → logic_and ( "or" logic_and )* ;
 // logic_and  → equality ( "and" equality )* ;
@@ -404,6 +404,7 @@ fn assignment(input: Input) -> IResult<Expr> {
     if let Ok((input, _)) = tk(input, TokenKind::Equal) {
         let lvalue = match lhs {
             Expr::Ident(name) => LValue::Ident(name),
+            Expr::FieldAccess(field_access) => LValue::Field(*field_access),
 
             _ => Err(ParseError::UnsupportedLValue {
                 line: lhs.line(),
