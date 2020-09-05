@@ -11,6 +11,7 @@ pub enum Type {
     Bytes,
     Bool,
     Func,
+    Class,
     Nil,
 }
 
@@ -22,6 +23,7 @@ impl fmt::Display for Type {
             Bytes => write!(f, "string"),
             Bool => write!(f, "bool"),
             Func => write!(f, "function"),
+            Class => write!(f, "class"),
             Nil => write!(f, "nil"),
         }
     }
@@ -34,6 +36,7 @@ pub enum Value {
     Bool(bool),
     NativeFunc(SharedNativeFunc),
     Func(SharedFunc),
+    Class(SharedClass),
     Nil,
 }
 
@@ -52,6 +55,7 @@ impl fmt::Display for Value {
             Bool(value) => write!(f, "{}", value),
             NativeFunc(_) => write!(f, "<native func>"),
             Func(func) => write!(f, "{}", func),
+            Class(class) => write!(f, "{}", class),
             Nil => write!(f, "nil"),
         }
     }
@@ -66,6 +70,7 @@ impl Value {
             Bool(_) => Type::Bool,
             NativeFunc(_) |
             Func(_) => Type::Func,
+            Class(_) => Type::Class,
             Nil => Type::Nil,
         }
     }
@@ -86,6 +91,7 @@ impl Value {
             Number(_) |
             Bytes(_) |
             Bool(_) |
+            Class(_) | //TODO: Classes could be callable maybe?
             Nil => None,
 
             NativeFunc(func) => Some(Callable::NativeFunc(func)),
@@ -209,5 +215,29 @@ impl Callable {
             NativeFunc(func) => func.call(ctx, args),
             Func(func) => func.call(ctx, args),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SharedClass(Arc<ast::ClassDecl>);
+
+impl From<ast::ClassDecl> for SharedClass {
+    fn from(value: ast::ClassDecl) -> Self {
+        SharedClass(Arc::new(value))
+    }
+}
+
+impl SharedClass {
+}
+
+impl fmt::Display for SharedClass {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<class {}>", self.0.name.value)
+    }
+}
+
+impl PartialEq for SharedClass {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }

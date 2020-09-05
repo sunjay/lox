@@ -97,7 +97,9 @@ impl Evaluate for ast::FuncDecl {
 
 impl Evaluate for ast::ClassDecl {
     fn eval(self, ctx: &mut Interpreter) -> EvalResult {
-        todo!()
+        let name = self.name.value.clone();
+        ctx.env.insert(name, Value::Class(self.into()));
+        Ok(Value::Nil)
     }
 }
 
@@ -308,6 +310,13 @@ impl Evaluate for ast::BinaryExpr {
                 _ => Err(unsupported_operator())?,
             },
 
+            //TODO: Class could overload operators?
+            (Value::Class(a), Value::Class(b)) => match op {
+                Equal => Value::Bool(a == b),
+                NotEqual => Value::Bool(a != b),
+                _ => Err(unsupported_operator())?,
+            },
+
             (Value::Nil, Value::Nil) => match op {
                 Equal => Value::Bool(true),
                 NotEqual => Value::Bool(false),
@@ -352,6 +361,10 @@ impl Evaluate for ast::UnaryExpr {
             },
 
             Value::Func(_) => match op {
+                _ => Err(unsupported_operator())?,
+            },
+
+            Value::Class(_) => match op { //TODO: Class could support operators maybe?
                 _ => Err(unsupported_operator())?,
             },
 
