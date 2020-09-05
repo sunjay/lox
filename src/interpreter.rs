@@ -310,8 +310,14 @@ impl Evaluate for ast::BinaryExpr {
                 _ => Err(unsupported_operator())?,
             },
 
-            //TODO: Class could overload operators?
             (Value::Class(a), Value::Class(b)) => match op {
+                Equal => Value::Bool(a == b),
+                NotEqual => Value::Bool(a != b),
+                _ => Err(unsupported_operator())?,
+            },
+
+            //TODO: Instance could overload operators?
+            (Value::Instance(a), Value::Instance(b)) => match op {
                 Equal => Value::Bool(a == b),
                 NotEqual => Value::Bool(a != b),
                 _ => Err(unsupported_operator())?,
@@ -364,7 +370,11 @@ impl Evaluate for ast::UnaryExpr {
                 _ => Err(unsupported_operator())?,
             },
 
-            Value::Class(_) => match op { //TODO: Class could support operators maybe?
+            Value::Class(_) => match op {
+                _ => Err(unsupported_operator())?,
+            },
+
+            Value::Instance(_) => match op { //TODO: Instance could support operators maybe?
                 _ => Err(unsupported_operator())?,
             },
 

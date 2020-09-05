@@ -12,6 +12,7 @@ pub enum Type {
     Bool,
     Func,
     Class,
+    Instance,
     Nil,
 }
 
@@ -24,6 +25,7 @@ impl fmt::Display for Type {
             Bool => write!(f, "bool"),
             Func => write!(f, "function"),
             Class => write!(f, "class"),
+            Instance => write!(f, "instance"),
             Nil => write!(f, "nil"),
         }
     }
@@ -37,6 +39,7 @@ pub enum Value {
     NativeFunc(SharedNativeFunc),
     Func(SharedFunc),
     Class(SharedClass),
+    Instance(SharedInstance),
     Nil,
 }
 
@@ -56,6 +59,7 @@ impl fmt::Display for Value {
             NativeFunc(_) => write!(f, "<native func>"),
             Func(func) => write!(f, "{}", func),
             Class(class) => write!(f, "{}", class),
+            Instance(instance) => write!(f, "{}", instance),
             Nil => write!(f, "nil"),
         }
     }
@@ -71,6 +75,7 @@ impl Value {
             NativeFunc(_) |
             Func(_) => Type::Func,
             Class(_) => Type::Class,
+            Instance(_) => Type::Instance,
             Nil => Type::Nil,
         }
     }
@@ -91,11 +96,12 @@ impl Value {
             Number(_) |
             Bytes(_) |
             Bool(_) |
-            Class(_) | //TODO: Classes could be callable maybe?
+            Instance(_) | //TODO: instances could be callable maybe?
             Nil => None,
 
             NativeFunc(func) => Some(Callable::NativeFunc(func)),
             Func(func) => Some(Callable::Func(func)),
+            Class(class) => Some(Callable::Class(class)),
         }
     }
 }
@@ -194,30 +200,6 @@ impl PartialEq for SharedFunc {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Callable {
-    NativeFunc(SharedNativeFunc),
-    Func(SharedFunc),
-}
-
-impl Callable {
-    pub fn arity(&self) -> usize {
-        use Callable::*;
-        match self {
-            NativeFunc(func) => func.arity(),
-            Func(func) => func.arity(),
-        }
-    }
-
-    pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
-        use Callable::*;
-        match self {
-            NativeFunc(func) => func.call(ctx, args),
-            Func(func) => func.call(ctx, args),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct SharedClass(Arc<ast::ClassDecl>);
 
@@ -228,6 +210,17 @@ impl From<ast::ClassDecl> for SharedClass {
 }
 
 impl SharedClass {
+    fn arity(&self) -> usize {
+        0 //TODO: user-defined constructors
+    }
+
+    fn call(&self, _ctx: &mut Interpreter, _args: Vec<Value>) -> EvalResult {
+        let instance = Instance {
+            class: self.0.clone(),
+        };
+
+        Ok(Value::Instance(instance.into()))
+    }
 }
 
 impl fmt::Display for SharedClass {
@@ -237,6 +230,62 @@ impl fmt::Display for SharedClass {
 }
 
 impl PartialEq for SharedClass {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Callable {
+    NativeFunc(SharedNativeFunc),
+    Func(SharedFunc),
+    Class(SharedClass),
+}
+
+impl Callable {
+    pub fn arity(&self) -> usize {
+        use Callable::*;
+        match self {
+            NativeFunc(func) => func.arity(),
+            Func(func) => func.arity(),
+            Class(class) => class.arity(),
+        }
+    }
+
+    pub fn call(self, ctx: &mut Interpreter, args: Vec<Value>) -> EvalResult {
+        use Callable::*;
+        match self {
+            NativeFunc(func) => func.call(ctx, args),
+            Func(func) => func.call(ctx, args),
+            Class(class) => class.call(ctx, args),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Instance {
+    class: Arc<ast::ClassDecl>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SharedInstance(Arc<Instance>);
+
+impl From<Instance> for SharedInstance {
+    fn from(value: Instance) -> Self {
+        SharedInstance(Arc::new(value))
+    }
+}
+
+impl SharedInstance {
+}
+
+impl fmt::Display for SharedInstance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<instance {}>", self.0.class.name.value)
+    }
+}
+
+impl PartialEq for SharedInstance {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
