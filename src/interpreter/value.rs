@@ -204,11 +204,28 @@ impl PartialEq for SharedFunc {
 }
 
 #[derive(Clone, Debug)]
-pub struct SharedClass(Arc<ast::ClassDecl>);
+pub struct Class {
+    name: Arc<str>,
+    methods: HashMap<Arc<str>, Value>,
+}
+
+impl From<ast::ClassDecl> for Class {
+    fn from(class: ast::ClassDecl) -> Self {
+        Self {
+            name: class.name.value.clone(),
+            methods: class.methods.iter().map(|func| {
+                (func.name.value.clone(), Value::Func(func.clone().into()))
+            }).collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SharedClass(Arc<Class>);
 
 impl From<ast::ClassDecl> for SharedClass {
     fn from(value: ast::ClassDecl) -> Self {
-        SharedClass(Arc::new(value))
+        SharedClass(Arc::new(value.into()))
     }
 }
 
@@ -226,7 +243,7 @@ impl SharedClass {
 
 impl fmt::Display for SharedClass {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<class {}>", self.0.name.value)
+        write!(f, "<class {}>", self.0.name)
     }
 }
 
@@ -265,12 +282,12 @@ impl Callable {
 
 #[derive(Clone, Debug)]
 pub struct Instance {
-    class: Arc<ast::ClassDecl>,
+    class: Arc<Class>,
     fields: HashMap<Arc<str>, Value>,
 }
 
-impl From<Arc<ast::ClassDecl>> for Instance {
-    fn from(class: Arc<ast::ClassDecl>) -> Self {
+impl From<Arc<Class>> for Instance {
+    fn from(class: Arc<Class>) -> Self {
         Self {
             class,
             fields: Default::default(),
@@ -281,6 +298,7 @@ impl From<Arc<ast::ClassDecl>> for Instance {
 impl Instance {
     pub fn get(&self, field: &str) -> Option<&Value> {
         self.fields.get(field)
+            .or_else(|| self.class.methods.get(field))
     }
 
     pub fn set(&mut self, field: Arc<str>, value: Value) {
@@ -309,7 +327,7 @@ impl SharedInstance {
 
 impl fmt::Display for SharedInstance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<instance {}>", self.0.lock().class.name.value)
+        write!(f, "<instance {}>", self.0.lock().class.name)
     }
 }
 
