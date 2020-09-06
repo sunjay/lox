@@ -1,0 +1,11 @@
+$ cargo build --release && time cargo run --release samples/benchmark.lox
+    Finished release [optimized] target(s) in 0.04s
+    Finished release [optimized] target(s) in 0.02s
+     Running `target/release/lox samples/benchmark.lox`
+102334155
+Benchmark:
+294.385999917984
+
+real	4m54.422s
+user	4m54.397s
+sys	0m0.016s
